@@ -163,14 +163,24 @@ def dashboard_stats():
         active_incidents = cursor.fetchone()[0]
         
         # Asistencias del mes actual
-        cursor.execute(f"""
-            SELECT COUNT(*)
-            FROM attendance a
-            JOIN attendance_roster ar ON a.employee_id = ar.employee_id
-            WHERE ar.added_by_user_id IN ({placeholders})
-            AND strftime('%m', a.date) = strftime('%m', 'now')
-            AND strftime('%Y', a.date) = strftime('%Y', 'now')
-        """, authorized_ids)
+        if USE_POSTGRES:
+            cursor.execute(f"""
+                SELECT COUNT(*)
+                FROM attendance a
+                JOIN attendance_roster ar ON a.employee_id = ar.employee_id
+                WHERE ar.added_by_user_id IN ({placeholders})
+                AND EXTRACT(MONTH FROM a.date) = EXTRACT(MONTH FROM CURRENT_DATE)
+                AND EXTRACT(YEAR FROM a.date) = EXTRACT(YEAR FROM CURRENT_DATE)
+            """, authorized_ids)
+        else:
+            cursor.execute(f"""
+                SELECT COUNT(*)
+                FROM attendance a
+                JOIN attendance_roster ar ON a.employee_id = ar.employee_id
+                WHERE ar.added_by_user_id IN ({placeholders})
+                AND strftime('%m', a.date) = strftime('%m', 'now')
+                AND strftime('%Y', a.date) = strftime('%Y', 'now')
+            """, authorized_ids)
         monthly_attendance = cursor.fetchone()[0]
         
         return jsonify({
