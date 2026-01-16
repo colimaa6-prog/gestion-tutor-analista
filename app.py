@@ -538,6 +538,25 @@ def add_to_roster():
     finally:
         conn.close()
 
+@app.route('/api/attendance/roster/<int:employee_id>', methods=['DELETE', 'OPTIONS'])
+def delete_from_roster(employee_id):
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            DELETE FROM attendance_roster 
+            WHERE employee_id = %s
+        """, (employee_id,))
+        conn.commit()
+        
+        return jsonify({'success': True, 'message': 'Colaborador eliminado del roster'})
+    finally:
+        conn.close()
+
 @app.route('/api/attendance/<int:id>', methods=['DELETE', 'OPTIONS'])
 def delete_attendance(id):
     if request.method == 'OPTIONS':
