@@ -50,7 +50,7 @@ def get_authorized_user_ids(user_id):
     try:
         # Obtener información del usuario
         cursor.execute(
-            "SELECT id, role, supervisor_id FROM users WHERE id = ?",
+            "SELECT id, role, supervisor_id FROM users WHERE id = %s",
             (user_id,)
         )
         user = cursor.fetchone()
@@ -61,7 +61,7 @@ def get_authorized_user_ids(user_id):
         if user['role'] == 'admin':
             # Admin ve a sus supervisados
             cursor.execute(
-                "SELECT id FROM users WHERE supervisor_id = ?",
+                "SELECT id FROM users WHERE supervisor_id = %s",
                 (user_id,)
             )
             supervised = cursor.fetchall()
@@ -100,7 +100,7 @@ def login():
         cursor.execute(
             """SELECT id, username, role, branch_id 
                FROM users 
-               WHERE username = ? AND password_hash = ?""",
+               WHERE username = %s AND password_hash = %s""",
             (username, password)
         )
         user = cursor.fetchone()
@@ -141,7 +141,7 @@ def dashboard_stats():
     cursor = conn.cursor()
     
     try:
-        placeholders = ','.join(['?' for _ in authorized_ids])
+        placeholders = ','.join(['%s' for _ in authorized_ids])
         
         # Total empleados en roster
         cursor.execute(f"""
@@ -220,7 +220,7 @@ def employees():
             data = request.json
             cursor.execute("""
                 INSERT INTO employees (full_name, branch_id, status)
-                VALUES (?, ?, 'active')
+                VALUES (%s, %s, 'active')
             """, (data.get('full_name'), data.get('branch_id')))
             conn.commit()
             
@@ -250,7 +250,7 @@ def attendance():
             if not authorized_ids:
                 return jsonify({'success': False, 'message': 'No autorizado'}), 403
             
-            placeholders = ','.join(['?' for _ in authorized_ids])
+            placeholders = ','.join(['%s' for _ in authorized_ids])
             
             # Obtener roster
             cursor.execute(f"""
@@ -310,7 +310,7 @@ def attendance():
                 INSERT INTO attendance 
                 (employee_id, date, status, comment, arrival_time, 
                  permission_type, start_date, end_date)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 data.get('employee_id'),
                 data.get('date'),
@@ -342,7 +342,7 @@ def add_to_roster():
     try:
         cursor.execute("""
             INSERT OR REPLACE INTO attendance_roster (employee_id, added_by_user_id)
-            VALUES (?, ?)
+            VALUES (%s, %s)
         """, (employee_id, user_id))
         conn.commit()
         
@@ -359,7 +359,7 @@ def delete_attendance(id):
     cursor = conn.cursor()
     
     try:
-        cursor.execute("DELETE FROM attendance WHERE id = ?", (id,))
+        cursor.execute("DELETE FROM attendance WHERE id = %s", (id,))
         conn.commit()
         
         return jsonify({'success': True})
@@ -388,7 +388,7 @@ def reports():
             if not authorized_ids:
                 return jsonify({'success': False, 'message': 'No autorizado'}), 403
             
-            placeholders = ','.join(['?' for _ in authorized_ids])
+            placeholders = ','.join(['%s' for _ in authorized_ids])
             
             # Obtener empleados del roster
             cursor.execute(f"""
@@ -420,7 +420,7 @@ def reports():
             
             cursor.execute("""
                 INSERT OR REPLACE INTO reports (employee_id, month, year, data)
-                VALUES (?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s)
             """, (
                 data.get('employee_id'),
                 data.get('month'),
@@ -448,7 +448,7 @@ def get_report_data():
     try:
         cursor.execute("""
             SELECT data FROM reports
-            WHERE employee_id = ? AND month = ? AND year = ?
+            WHERE employee_id = %s AND month = %s AND year = %s
         """, (employee_id, month, year))
         
         result = cursor.fetchone()
@@ -475,3 +475,4 @@ def after_request(response):
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
