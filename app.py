@@ -589,6 +589,40 @@ def delete_from_roster(employee_id):
     finally:
         conn.close()
 
+@app.route('/api/attendance/mark', methods=['POST', 'OPTIONS'])
+def mark_attendance():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    data = request.json
+    employee_id = data.get('employee_id')
+    date = data.get('date')
+    status = data.get('status')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if status == 'none':
+            # Delete the attendance record
+            cursor.execute("""
+                DELETE FROM attendance 
+                WHERE employee_id = %s AND date = %s
+            """, (employee_id, date))
+        else:
+            # Insert or update attendance record
+            cursor.execute("""
+                INSERT INTO attendance (employee_id, date, status)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (employee_id, date)
+                DO UPDATE SET status = EXCLUDED.status
+            """, (employee_id, date, status))
+        
+        conn.commit()
+        return jsonify({'success': True})
+    finally:
+        conn.close()
+
 @app.route('/api/attendance/<int:id>', methods=['DELETE', 'OPTIONS'])
 def delete_attendance(id):
     if request.method == 'OPTIONS':
@@ -683,9 +717,16 @@ def reports():
                 """, (employee_id, month, year))
                 
                 existing = cursor.fetchone()
-                if existing and existing['data']:
-                    report_obj = json.loads(existing['data'])
+                if existing and existing['data'] and existing['data'].strip():
+                    try:
+                        report_obj = json.loads(existing['data'])
+                    except (json.JSONDecodeError, TypeError):
+                        report_obj = {'faltantes': {}, 'guias': {}, 'tableros': {}}
                 else:
+                    report_obj = {'faltantes': {}, 'guias': {}, 'tableros': {}}
+                
+                # Ensure report_obj is a dict
+                if not isinstance(report_obj, dict):
                     report_obj = {'faltantes': {}, 'guias': {}, 'tableros': {}}
                 
                 # Update the specific field
