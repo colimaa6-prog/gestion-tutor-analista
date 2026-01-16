@@ -606,8 +606,10 @@ def reports():
             report_data = json.dumps(data.get('data'))
             
             cursor.execute("""
-                INSERT OR REPLACE INTO reports (employee_id, month, year, data)
+                INSERT INTO reports (employee_id, month, year, data)
                 VALUES (%s, %s, %s, %s)
+                ON CONFLICT (employee_id, month, year) 
+                DO UPDATE SET data = EXCLUDED.data
             """, (
                 data.get('employee_id'),
                 data.get('month'),
