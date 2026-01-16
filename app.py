@@ -195,6 +195,176 @@ def dashboard_stats():
     finally:
         conn.close()
 
+# ==================== API: DASHBOARD DETAILS ====================
+
+def get_dashboard_daily_detail(status):
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+    
+    authorized_ids = get_authorized_user_ids(int(user_id))
+    if not authorized_ids:
+        return jsonify({'success': True, 'data': []})
+        
+    placeholders = ','.join(['%s' for _ in authorized_ids])
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"""
+            SELECT e.id, e.full_name, b.name as branch_name, a.comment
+            FROM attendance a
+            JOIN employees e ON a.employee_id = e.id
+            LEFT JOIN branches b ON e.branch_id = b.id
+            WHERE a.date = %s AND a.status = %s AND a.employee_id IN ({placeholders})
+            ORDER BY e.full_name ASC
+        """, [today, status] + authorized_ids)
+        
+        data = [dict(row) for row in cursor.fetchall()]
+        return jsonify({'success': True, 'data': data})
+    finally:
+        conn.close()
+
+def get_dashboard_range_detail(status):
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+    
+    authorized_ids = get_authorized_user_ids(int(user_id))
+    if not authorized_ids:
+        return jsonify({'success': True, 'data': []})
+        
+    placeholders = ','.join(['%s' for _ in authorized_ids])
+    today = datetime.now().strftime('%Y-%m-%d')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"""
+            SELECT e.id, e.full_name, b.name as branch_name, a.start_date, a.end_date, a.comment, a.permission_type
+            FROM attendance a
+            JOIN employees e ON a.employee_id = e.id
+            LEFT JOIN branches b ON e.branch_id = b.id
+            WHERE a.status = %s 
+            AND a.start_date <= %s 
+            AND a.end_date >= %s
+            AND a.employee_id IN ({placeholders})
+            ORDER BY e.full_name ASC
+        """, [status, today, today] + authorized_ids)
+        
+        data = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            for k, v in item.items():
+                if hasattr(v, 'isoformat'):
+                    item[k] = v.isoformat()
+            data.append(item)
+            
+        return jsonify({'success': True, 'data': data})
+    finally:
+        conn.close()
+
+@app.route('/api/dashboard/absences', methods=['GET', 'OPTIONS'])
+def dashboard_absences():
+    if request.method == 'OPTIONS': return '', 204
+    return get_dashboard_daily_detail('absent')
+
+@app.route('/api/dashboard/vacations', methods=['GET', 'OPTIONS'])
+def dashboard_vacations():
+    if request.method == 'OPTIONS': return '', 204
+    return get_dashboard_range_detail('vacation')
+
+@app.route('/api/dashboard/permissions', methods=['GET', 'OPTIONS'])
+def dashboard_permissions():
+    if request.method == 'OPTIONS': return '', 204
+    return get_dashboard_range_detail('permission')
+
+@app.route('/api/dashboard/sick-leaves', methods=['GET', 'OPTIONS'])
+def dashboard_sick_leaves():
+    if request.method == 'OPTIONS': return '', 204
+    return get_dashboard_range_detail('incapacity')
+
+@app.route('/api/dashboard/active-incidents', methods=['GET', 'OPTIONS'])
+def dashboard_active_incidents():
+    if request.method == 'OPTIONS': return '', 204
+    
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+    
+    authorized_ids = get_authorized_user_ids(int(user_id))
+    if not authorized_ids:
+        return jsonify({'success': True, 'data': []})
+        
+    placeholders = ','.join(['%s' for _ in authorized_ids])
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"""
+            SELECT i.*, e.full_name as reported_by_name, b.name as branch_name
+            FROM incidents i
+            JOIN employees e ON i.reported_by = e.id
+            LEFT JOIN branches b ON i.branch_id = b.id
+            WHERE i.status IN ('pending', 'in_progress')
+            AND i.reported_by IN ({placeholders})
+            ORDER BY i.created_at DESC
+        """, authorized_ids)
+        
+        data = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            for k, v in item.items():
+                if hasattr(v, 'isoformat'):
+                    item[k] = v.isoformat()
+            data.append(item)
+            
+        return jsonify({'success': True, 'data': data})
+    finally:
+        conn.close()
+
+@app.route('/api/incidents', methods=['GET', 'OPTIONS'])
+def incidents_list():
+    if request.method == 'OPTIONS': return '', 204
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("""
+            SELECT i.*, e.full_name as reported_by_name, b.name as branch_name 
+            FROM incidents i
+            JOIN employees e ON i.reported_by = e.id
+            LEFT JOIN branches b ON i.branch_id = b.id
+            ORDER BY i.created_at DESC
+        """)
+        data = []
+        for row in cursor.fetchall():
+            item = dict(row)
+            for k, v in item.items():
+                if hasattr(v, 'isoformat'):
+                    item[k] = v.isoformat()
+            data.append(item)
+        return jsonify({'success': True, 'data': data})
+    finally:
+        conn.close()
+
+# ==================== API: BRANCHES ====================
+
+@app.route('/api/branches', methods=['GET', 'OPTIONS'])
+def get_branches():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("SELECT * FROM branches ORDER BY name ASC")
+        data = [dict(row) for row in cursor.fetchall()]
+        return jsonify({'success': True, 'data': data})
+    finally:
+        conn.close()
+
 # ==================== API: EMPLOYEES ====================
 
 @app.route('/api/employees', methods=['GET', 'POST', 'OPTIONS'])
