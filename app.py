@@ -456,15 +456,14 @@ def attendance():
             
             placeholders = ','.join(['%s' for _ in authorized_ids])
             
-            # Obtener roster (empleados en la lista de asistencia)
-            cursor.execute(f"""
-                SELECT e.id, e.full_name, e.branch_id, b.name as branch_name
+            # Obtener roster (empleados en la lista de asistencia - todos)
+            cursor.execute("""
+                SELECT DISTINCT e.id, e.full_name, e.branch_id, b.name as branch_name
                 FROM attendance_roster ar
                 JOIN employees e ON ar.employee_id = e.id
                 LEFT JOIN branches b ON e.branch_id = b.id
-                WHERE ar.added_by_user_id IN ({placeholders})
                 ORDER BY e.full_name ASC
-            """, authorized_ids)
+            """)
             
             employees = []
             for row in cursor:
@@ -620,15 +619,14 @@ def reports():
             
             placeholders = ','.join(['%s' for _ in authorized_ids])
             
-            # Obtener empleados del roster
-            cursor.execute(f"""
-                SELECT e.id, e.full_name, e.branch_id, b.name as branch_name
+            # Obtener empleados del roster (todos, sin filtrar por quién los agregó)
+            cursor.execute("""
+                SELECT DISTINCT e.id, e.full_name, e.branch_id, b.name as branch_name
                 FROM attendance_roster ar
                 JOIN employees e ON ar.employee_id = e.id
                 LEFT JOIN branches b ON e.branch_id = b.id
-                WHERE ar.added_by_user_id IN ({placeholders})
                 ORDER BY e.full_name ASC
-            """, authorized_ids)
+            """)
             
             employees = []
             for row in cursor:
