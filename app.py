@@ -354,18 +354,25 @@ def incidents_list():
         
         elif request.method == 'POST':
             data = request.json
+            
+            # Convertir cadenas vacías a None para campos de fecha
+            start_date = data.get('start_date') or None
+            end_date = data.get('end_date') or None
+            branch_id = data.get('branch_id') or None
+            reported_by = data.get('reported_by') or None
+            
             cursor.execute("""
                 INSERT INTO incidents 
                 (branch_id, reported_by, type, status, description, start_date, end_date)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (
-                data.get('branch_id'),
-                data.get('reported_by'),
+                branch_id,
+                reported_by,
                 data.get('type'),
                 data.get('status', 'pending'),
                 data.get('description'),
-                data.get('start_date'),
-                data.get('end_date')
+                start_date,
+                end_date
             ))
             conn.commit()
             return jsonify({'success': True, 'message': 'Incidencia creada'})
