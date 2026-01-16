@@ -129,7 +129,8 @@ async function fetchAndRenderReports() {
         const res = await fetch(`${API_BASE_URL}/reports?month=${currentMonth}&year=${currentYear}&userId=${userId}`);
         const result = await res.json();
 
-        if (!result.success || !result.data || result.data.length === 0) {
+        // Backend devuelve 'employees', no 'data'
+        if (!result.success || !result.employees || result.employees.length === 0) {
             document.getElementById('reportsBody').innerHTML = '<tr><td style="padding: 2rem; text-align: center;">No hay colaboradores en la lista. Agrega colaboradores en la sección de Asistencias primero.</td></tr>';
             return;
         }
@@ -137,7 +138,7 @@ async function fetchAndRenderReports() {
         const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
         let html = '';
 
-        result.data.forEach(emp => {
+        result.employees.forEach(emp => {
             // Parse existing data
             const reportData = emp.report_data ? JSON.parse(emp.report_data) : { faltantes: {}, guias: {}, tableros: {} };
 
