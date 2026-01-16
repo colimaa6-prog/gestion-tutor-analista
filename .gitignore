@@ -1,0 +1,8 @@
+node_modules/
+*.db
+*.log
+.env.local
+database-sqlite*.js
+gestion_tutor.db
+wallet/*.zip
+instantclient*/

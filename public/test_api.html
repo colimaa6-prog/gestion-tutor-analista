@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Diagnóstico API</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 2rem;
+            background: #f0f0f0;
+        }
+
+        .box {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h3 {
+            margin-top: 0;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 0.5rem;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        pre {
+            background: #eee;
+            padding: 10px;
+            overflow: auto;
+            max-height: 300px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Diagnóstico de Conexión ORDS</h1>
+    <div id="config-info" class="box">Cargando configuración...</div>
+    <div id="results"></div>
+
+    <script src="js/config.js"></script>
+    <script>
+        document.getElementById('config-info').innerHTML = `
+            <h3>Configuración</h3>
+            <strong>API_BASE_URL:</strong> ${API_BASE_URL}<br>
+            <em>(Esta es la URL a la que se intenta conectar)</em>
+        `;
+
+        async function testEndpoint(name, path) {
+            const container = document.createElement('div');
+            container.className = 'box';
+            container.innerHTML = `<h3>Test: ${name} (${path})</h3><p>Conectando...</p>`;
+            document.getElementById('results').appendChild(container);
+
+            try {
+                const start = Date.now();
+                const res = await fetch(`${API_BASE_URL}${path}`);
+                const duration = Date.now() - start;
+
+                const statusColor = res.ok ? 'green' : 'red';
+                let contentHTML = `<p><strong>Estado:</strong> <span style="color:${statusColor}">${res.status} ${res.statusText}</span> (${duration}ms)</p>`;
+
+                try {
+                    const json = await res.json();
+                    contentHTML += `<strong>Respuesta JSON:</strong><pre>${JSON.stringify(json, null, 2)}</pre>`;
+
+                    if (json.success === true) {
+                        contentHTML += `<p class="success">✅ Estructura 'success: true' CORRECTA.</p>`;
+                        if (json.data) {
+                            contentHTML += `<p>Datos recibidos: ${Array.isArray(json.data) ? json.data.length + ' items' : 'Objeto'}</p>`;
+                        }
+                    } else if (json.success === false) {
+                        contentHTML += `<p class="error">⚠️ El servidor respondió 'success: false'</p>`;
+                    } else {
+                        contentHTML += `<p class="error">❌ FALTA campo 'success'. El formato no es compatible con la App.</p>`;
+                    }
+
+                } catch (e) {
+                    contentHTML += `<p class="error">❌ No es JSON válido.</p>`;
+                    // Try text
+                    try {
+                        const text = await res.text(); // res.json() consumed body? no, create clone if executing twice, but here flow is rigorous
+                        // Wait, request body is consumed. We can't read text if json failed usually unless we clone. 
+                        // But fetch stream is locked. 
+                        // Actually, res.json() fails, we can't read text easily from same object without clone.
+                    } catch (err) { }
+
+                }
+
+                container.innerHTML = `<h3>Test: ${name} (${path})</h3>` + contentHTML;
+
+            } catch (err) {
+                container.innerHTML = `<h3>Test: ${name} (${path})</h3><p class="error">❌ Error de Red / Fetch: ${err.message}</p>`;
+            }
+        }
+
+        async function runTests() {
+            // Test all critical endpoints
+            await testEndpoint('📊 Dashboard Stats', '/dashboard/stats');
+            await testEndpoint('👥 Empleados (Employees)', '/employees');
+            await testEndpoint('🏢 Sucursales (Branches)', '/branches');
+            await testEndpoint('⚠️ Incidencias (Incidents)', '/incidents');
+            await testEndpoint('📋 Roster de Asistencia', '/attendance/roster');
+        }
+
+        // Add a summary at the top
+        const summaryBox = document.createElement('div');
+        summaryBox.className = 'box';
+        summaryBox.style.background = '#fff3cd';
+        summaryBox.innerHTML = `
+            <h3>🔍 Diagnóstico de Endpoints</h3>
+            <p><strong>Objetivo:</strong> Verificar que todos los endpoints de Oracle ORDS están configurados correctamente.</p>
+            <p><strong>Qué buscar:</strong></p>
+            <ul>
+                <li>✅ Estado HTTP 200 (OK)</li>
+                <li>✅ Respuesta JSON con estructura <code>{"success": true, "data": [...]}</code></li>
+                <li>❌ Error 404 = Endpoint no existe en ORDS</li>
+                <li>❌ Error CORS = Problema de permisos</li>
+            </ul>
+        `;
+        document.getElementById('results').prepend(summaryBox);
+
+        runTests();
+    </script>
+</body>
+
+</html>

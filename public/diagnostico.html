@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Conexión ORDS</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #333;
+        }
+
+        .success {
+            color: green;
+            font-weight: bold;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        pre {
+            background: #eee;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Herramienta de Diagnóstico ORDS</h1>
+
+    <div class="card">
+        <h2>1. Configuración Actual</h2>
+        <div id="configInfo">Cargando config.js...</div>
+    </div>
+
+    <div class="card">
+        <h2>2. Prueba de Conexión (Ping/Login)</h2>
+        <p>Intentaremos conectar con el endpoint de login usando credenciales incorrectas intencionalmente para ver si
+            el servidor responde JSON (401) o HTML (Error).</p>
+        <button onclick="runTest()">Ejecutar Prueba</button>
+        <div id="testResult" style="margin-top: 15px;"></div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+        const output = document.getElementById('configInfo');
+        const resultDiv = document.getElementById('testResult');
+
+        // Mostrar configuración cargada
+        if (typeof API_BASE_URL !== 'undefined') {
+            output.innerHTML = `
+                <p><strong>API_BASE_URL:</strong> ${API_BASE_URL}</p>
+                <p><strong>Navegador:</strong> ${navigator.userAgent}</p>
+            `;
+        } else {
+            output.innerHTML = '<p class="error">Error: No se pudo cargar la variable API_BASE_URL de js/config.js</p>';
+        }
+
+        async function runTest() {
+            resultDiv.innerHTML = 'Iniciando prueba... espere...';
+
+            try {
+                // Intentamos un login falso
+                const url = `${API_BASE_URL}/login`;
+                resultDiv.innerHTML += `<p><strong>Petiicón a:</strong> ${url}</p>`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'test_diag', password: 'wrong_password' })
+                });
+
+                const status = response.status;
+                const contentType = response.headers.get("content-type");
+                const text = await response.text();
+
+                let html = `<p><strong>Estado HTTP:</strong> ${status}</p>`;
+                html += `<p><strong>Content-Type:</strong> ${contentType}</p>`;
+
+                if (contentType && contentType.includes("application/json")) {
+                    html += `<p class="success">✅ ¡ÉXITO! El servidor respondió JSON.</p>`;
+                    html += `<pre>${text}</pre>`;
+                } else {
+                    html += `<p class="error">❌ ERROR: El servidor respondió algo que no es JSON (probablemente HTML de error de Oracle).</p>`;
+                    html += `<p>Contenido recibido (primeros 500 caracteres):</p>`;
+                    html += `<pre>${text.substring(0, 500).replace(/</g, "&lt;")}...</pre>`;
+
+                    if (text.includes("Sign in to Oracle")) {
+                        html += `<p class="error"><strong>Diagnóstico:</strong> Estás siendo redirigido a la página de login de Oracle. Esto significa que el esquema de base de datos NO tiene permisos públicos o el alias de la URL es incorrecto.</p>`;
+                    } else if (status === 404) {
+                        html += `<p class="error"><strong>Diagnóstico:</strong> Error 404. La URL no existe. Verifica que hayas ejecutado el script SQL "enable_ords" y que el alias coincida.</p>`;
+                    }
+                }
+
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">❌ Error de Red / Fetch: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+
+</html>
