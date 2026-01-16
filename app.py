@@ -16,6 +16,10 @@ app = Flask(__name__, static_folder='public', static_url_path='')
 DATABASE_URL = os.getenv('DATABASE_URL')
 USE_POSTGRES = DATABASE_URL is not None
 
+# Debug: Mostrar qué base de datos se está usando
+print(f"🔍 DATABASE_URL encontrada: {DATABASE_URL is not None}")
+print(f"🔍 Usando {'PostgreSQL' if USE_POSTGRES else 'SQLite'}")
+
 # Ruta de la base de datos SQLite (solo para local)
 DB_PATH = 'gestion_tutor.db'
 
