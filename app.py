@@ -27,7 +27,7 @@ def get_db_connection():
     """Crear conexión a PostgreSQL o SQLite según el entorno"""
     if USE_POSTGRES:
         # Conexión a PostgreSQL (Railway)
-        conn = psycopg2.connect(DATABASE_URL)
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.DictCursor)
         return conn
     else:
         # Conexión a SQLite (local)
