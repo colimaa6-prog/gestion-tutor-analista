@@ -1209,6 +1209,7 @@
 
         // --- INCIDENTS LOGIC ---
         let incidentsCache = [];
+        let incidentStaffCache = []; // Cache for employees dropdown in incidents modal
 
         async function loadIncidents() {
             updateActiveLink('Incidencias');
@@ -1368,8 +1369,6 @@
             html += '</tbody></table>';
             document.getElementById('incidentsTableContainer').innerHTML = html;
         }
-
-        let incidentStaffCache = [];
 
         async function openNewIncidentModal() {
             document.getElementById('newIncidentModal').style.display = 'flex';
