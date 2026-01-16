@@ -1413,6 +1413,10 @@
                 return;
             }
 
+            // Obtener branch_id del empleado seleccionado
+            const emp = incidentStaffCache.find(e => e.id == empId);
+            const branchId = emp ? emp.branch_id : null;
+
             const type = document.getElementById('incTipo').value;
             const status = document.getElementById('incEstatus').value;
             const startDate = document.getElementById('incFechaInicio').value;
@@ -1424,7 +1428,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        employee_id: empId,
+                        reported_by: empId,  // Campo correcto para el backend
+                        branch_id: branchId,
                         type,
                         status,
                         start_date: startDate,
