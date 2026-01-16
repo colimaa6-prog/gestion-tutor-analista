@@ -59,13 +59,16 @@ def get_authorized_user_ids(user_id):
             return []
         
         if user['role'] == 'admin':
-            # Admin ve a sus supervisados
+            # Admin ve a sus supervisados Y a sí mismo
             cursor.execute(
                 "SELECT id FROM users WHERE supervisor_id = %s",
                 (user_id,)
             )
             supervised = cursor.fetchall()
-            return [row['id'] for row in supervised]
+            supervised_ids = [row['id'] for row in supervised]
+            # Incluir al admin mismo en la lista
+            supervised_ids.append(user_id)
+            return supervised_ids
         else:
             # Usuario regular solo se ve a sí mismo
             return [user_id]
@@ -324,28 +327,48 @@ def dashboard_active_incidents():
     finally:
         conn.close()
 
-@app.route('/api/incidents', methods=['GET', 'OPTIONS'])
+@app.route('/api/incidents', methods=['GET', 'POST', 'OPTIONS'])
 def incidents_list():
-    if request.method == 'OPTIONS': return '', 204
+    if request.method == 'OPTIONS': 
+        return '', 204
     
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("""
-            SELECT i.*, e.full_name as reported_by_name, b.name as branch_name 
-            FROM incidents i
-            JOIN employees e ON i.reported_by = e.id
-            LEFT JOIN branches b ON i.branch_id = b.id
-            ORDER BY i.created_at DESC
-        """)
-        data = []
-        for row in cursor.fetchall():
-            item = dict(row)
-            for k, v in item.items():
-                if hasattr(v, 'isoformat'):
-                    item[k] = v.isoformat()
-            data.append(item)
-        return jsonify({'success': True, 'data': data})
+        if request.method == 'GET':
+            cursor.execute("""
+                SELECT i.*, e.full_name as reported_by_name, b.name as branch_name 
+                FROM incidents i
+                JOIN employees e ON i.reported_by = e.id
+                LEFT JOIN branches b ON i.branch_id = b.id
+                ORDER BY i.created_at DESC
+            """)
+            data = []
+            for row in cursor.fetchall():
+                item = dict(row)
+                for k, v in item.items():
+                    if hasattr(v, 'isoformat'):
+                        item[k] = v.isoformat()
+                data.append(item)
+            return jsonify({'success': True, 'data': data})
+        
+        elif request.method == 'POST':
+            data = request.json
+            cursor.execute("""
+                INSERT INTO incidents 
+                (branch_id, reported_by, type, status, description, start_date, end_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (
+                data.get('branch_id'),
+                data.get('reported_by'),
+                data.get('type'),
+                data.get('status', 'pending'),
+                data.get('description'),
+                data.get('start_date'),
+                data.get('end_date')
+            ))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Incidencia creada'})
     finally:
         conn.close()
 
