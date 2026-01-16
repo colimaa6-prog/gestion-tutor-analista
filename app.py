@@ -432,7 +432,7 @@ def attendance():
             
             placeholders = ','.join(['%s' for _ in authorized_ids])
             
-            # Obtener roster
+            # Obtener roster (empleados en la lista de asistencia)
             cursor.execute(f"""
                 SELECT e.id, e.full_name, e.branch_id, b.name as branch_name
                 FROM attendance_roster ar
@@ -442,46 +442,52 @@ def attendance():
                 ORDER BY e.full_name ASC
             """, authorized_ids)
             
-            roster = []
+            employees = []
             for row in cursor:
-                roster.append({
+                employees.append({
                     'id': row['id'],
                     'full_name': row['full_name'],
                     'branch_id': row['branch_id'],
-                    'branch_name': row['branch_name']
+                    'branch_name': row['branch_name'],
+                    'marks': {}  # Will be populated with attendance records
                 })
             
-            # Obtener registros de asistencia
+            if not employees:
+                return jsonify({'success': True, 'data': []})
+            
+            # Obtener todos los registros de asistencia para estos empleados
+            employee_ids = [emp['id'] for emp in employees]
+            emp_placeholders = ','.join(['%s' for _ in employee_ids])
+            
             cursor.execute(f"""
-                SELECT a.id, a.employee_id, a.date, a.status, a.comment,
-                       a.arrival_time, a.permission_type, a.start_date, a.end_date,
-                       e.full_name
+                SELECT a.employee_id, a.date, a.status, a.comment,
+                       a.arrival_time, a.permission_type, a.start_date, a.end_date
                 FROM attendance a
-                JOIN attendance_roster ar ON a.employee_id = ar.employee_id
-                JOIN employees e ON a.employee_id = e.id
-                WHERE ar.added_by_user_id IN ({placeholders})
+                WHERE a.employee_id IN ({emp_placeholders})
                 ORDER BY a.date DESC
-            """, authorized_ids)
+            """, employee_ids)
             
-            records = []
+            # Organizar las marcas por empleado y fecha
             for row in cursor:
-                records.append({
-                    'id': row['id'],
-                    'employee_id': row['employee_id'],
-                    'date': row['date'],
-                    'status': row['status'],
-                    'comment': row['comment'],
-                    'arrival_time': row['arrival_time'],
-                    'permission_type': row['permission_type'],
-                    'start_date': row['start_date'],
-                    'end_date': row['end_date'],
-                    'employee_name': row['full_name']
-                })
+                emp_id = row['employee_id']
+                date_str = row['date'].isoformat() if hasattr(row['date'], 'isoformat') else str(row['date'])
+                
+                # Encontrar el empleado correspondiente
+                for emp in employees:
+                    if emp['id'] == emp_id:
+                        emp['marks'][date_str] = {
+                            'status': row['status'],
+                            'comment': row['comment'],
+                            'arrival_time': row['arrival_time'],
+                            'permission_type': row['permission_type'],
+                            'start_date': row['start_date'].isoformat() if row['start_date'] and hasattr(row['start_date'], 'isoformat') else row['start_date'],
+                            'end_date': row['end_date'].isoformat() if row['end_date'] and hasattr(row['end_date'], 'isoformat') else row['end_date']
+                        }
+                        break
             
             return jsonify({
                 'success': True,
-                'roster': roster,
-                'records': records
+                'data': employees
             })
         
         elif request.method == 'POST':
@@ -521,8 +527,9 @@ def add_to_roster():
     
     try:
         cursor.execute("""
-            INSERT OR REPLACE INTO attendance_roster (employee_id, added_by_user_id)
+            INSERT INTO attendance_roster (employee_id, added_by_user_id)
             VALUES (%s, %s)
+            ON CONFLICT (employee_id) DO NOTHING
         """, (employee_id, user_id))
         conn.commit()
         
