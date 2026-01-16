@@ -378,7 +378,7 @@ def employees():
     try:
         if request.method == 'GET':
             cursor.execute("""
-                SELECT e.id, e.full_name, e.branch_id, b.name as branch_name, e.status
+                SELECT e.id, e.full_name, e.branch_id, e.hire_date, b.name as branch_name, e.status
                 FROM employees e
                 LEFT JOIN branches b ON e.branch_id = b.id
                 ORDER BY e.full_name ASC
@@ -390,6 +390,7 @@ def employees():
                     'id': row['id'],
                     'full_name': row['full_name'],
                     'branch_id': row['branch_id'],
+                    'hire_date': row['hire_date'].isoformat() if row['hire_date'] and hasattr(row['hire_date'], 'isoformat') else row['hire_date'],
                     'branch_name': row['branch_name'],
                     'status': row['status']
                 })
