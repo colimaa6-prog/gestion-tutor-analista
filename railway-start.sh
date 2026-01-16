@@ -3,11 +3,11 @@ set -e
 
 echo "🚀 Iniciando despliegue en Railway..."
 
-# Descargar Oracle Instant Client para Linux
+# Descargar Oracle Instant Client para Linux usando curl
 echo "📦 Descargando Oracle Instant Client..."
-wget -q https://download.oracle.com/otn_software/linux/instantclient/2340000/instantclient-basic-linux.x64-23.4.0.24.05.zip
-unzip -q instantclient-basic-linux.x64-23.4.0.24.05.zip
-rm instantclient-basic-linux.x64-23.4.0.24.05.zip
+curl -L -o instantclient.zip https://download.oracle.com/otn_software/linux/instantclient/2340000/instantclient-basic-linux.x64-23.4.0.24.05.zip
+unzip -q instantclient.zip
+rm instantclient.zip
 
 # Configurar variables de entorno
 export LD_LIBRARY_PATH=$PWD/instantclient_23_4:$LD_LIBRARY_PATH
