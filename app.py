@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify, send_from_directory
 import sqlite3
+import psycopg2
+import psycopg2.extras
 import os
 from dotenv import load_dotenv
 from datetime import datetime
@@ -10,14 +12,31 @@ load_dotenv()
 
 app = Flask(__name__, static_folder='public', static_url_path='')
 
-# Ruta de la base de datos SQLite
+# Detectar si estamos en Railway (PostgreSQL) o local (SQLite)
+DATABASE_URL = os.getenv('DATABASE_URL')
+USE_POSTGRES = DATABASE_URL is not None
+
+# Ruta de la base de datos SQLite (solo para local)
 DB_PATH = 'gestion_tutor.db'
 
 def get_db_connection():
-    """Crear conexión a SQLite"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Crear conexión a PostgreSQL o SQLite según el entorno"""
+    if USE_POSTGRES:
+        # Conexión a PostgreSQL (Railway)
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    else:
+        # Conexión a SQLite (local)
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+def dict_from_row(row):
+    """Convertir fila de DB a diccionario"""
+    if USE_POSTGRES:
+        return dict(row)
+    else:
+        return dict(row)
 
 def get_authorized_user_ids(user_id):
     """Obtener IDs de usuarios autorizados según jerarquía"""
