@@ -655,21 +655,61 @@ def reports():
                 'employees': employees
             })
         
+        
         elif request.method == 'POST':
             data = request.json
-            report_data = json.dumps(data.get('data'))
+            
+            # Check if this is a full data update or incremental update
+            if 'data' in data:
+                # Full data update (old format)
+                report_data = json.dumps(data.get('data'))
+                employee_id = data.get('employee_id')
+                month = data.get('month')
+                year = data.get('year')
+            else:
+                # Incremental update (new format from frontend)
+                employee_id = data.get('employee_id')
+                month = data.get('month')
+                year = data.get('year')
+                update_type = data.get('type')  # 'faltantes', 'guias', 'tableros'
+                key = data.get('key')  # day number or quincena/semana number
+                status = data.get('status')
+                comment = data.get('comment', '')
+                
+                # Fetch existing report data
+                cursor.execute("""
+                    SELECT data FROM reports 
+                    WHERE employee_id = %s AND month = %s AND year = %s
+                """, (employee_id, month, year))
+                
+                existing = cursor.fetchone()
+                if existing and existing['data']:
+                    report_obj = json.loads(existing['data'])
+                else:
+                    report_obj = {'faltantes': {}, 'guias': {}, 'tableros': {}}
+                
+                # Update the specific field
+                if update_type not in report_obj:
+                    report_obj[update_type] = {}
+                
+                if status == 'empty':
+                    # Remove the entry
+                    if str(key) in report_obj[update_type]:
+                        del report_obj[update_type][str(key)]
+                else:
+                    report_obj[update_type][str(key)] = {
+                        'status': status,
+                        'comment': comment
+                    }
+                
+                report_data = json.dumps(report_obj)
             
             cursor.execute("""
                 INSERT INTO reports (employee_id, month, year, data)
                 VALUES (%s, %s, %s, %s)
                 ON CONFLICT (employee_id, month, year) 
                 DO UPDATE SET data = EXCLUDED.data
-            """, (
-                data.get('employee_id'),
-                data.get('month'),
-                data.get('year'),
-                report_data
-            ))
+            """, (employee_id, month, year, report_data))
             conn.commit()
             
             return jsonify({'success': True})
