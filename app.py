@@ -439,6 +439,48 @@ def incident_detail(id):
     finally:
         conn.close()
 
+# ==================== API: SUPERVISED TUTORS ====================
+
+@app.route('/api/supervised-tutors', methods=['GET', 'OPTIONS'])
+def get_supervised_tutors():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Get user role
+        cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({'success': True, 'tutors': []})
+        
+        # Get supervised tutors
+        cursor.execute("""
+            SELECT id, username, role
+            FROM users
+            WHERE supervisor_id = %s AND role = 'tutor_analista'
+            ORDER BY username ASC
+        """, (user_id,))
+        
+        tutors = []
+        for row in cursor:
+            tutors.append({
+                'id': row['id'],
+                'username': row['username'],
+                'role': row['role']
+            })
+        
+        return jsonify({'success': True, 'tutors': tutors})
+    finally:
+        conn.close()
+
 # ==================== API: BRANCHES ====================
 
 @app.route('/api/branches', methods=['GET', 'OPTIONS'])
