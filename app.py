@@ -635,13 +635,35 @@ def attendance():
             employee_ids = [emp['id'] for emp in employees]
             emp_placeholders = ','.join(['%s' for _ in employee_ids])
             
-            cursor.execute(f"""
+            # Obtener registros de asistencia filtrados por mes/año si se proporcionan
+            month = request.args.get('month')
+            year = request.args.get('year')
+            
+            query = """
                 SELECT a.employee_id, a.date, a.status, a.comment,
                        a.arrival_time, a.permission_type, a.start_date, a.end_date
                 FROM attendance a
-                WHERE a.employee_id IN ({emp_placeholders})
-                ORDER BY a.date DESC
-            """, employee_ids)
+                WHERE a.employee_id IN ({})
+            """.format(emp_placeholders)
+            
+            params = employee_ids.copy()
+            
+            if month is not None and year is not None:
+                # Filtrar por mes específico
+                # Nota: month en JS es 0-11, aquí ajustamos si es necesario o asumimos formato
+                # Asumiendo que frontend manda 0 para Enero, en SQL EXTRACT(MONTH) es 1 para Enero
+                # Ajustamos sumando 1 al mes recibido
+                try:
+                    target_month = int(month) + 1
+                    target_year = int(year)
+                    query += " AND EXTRACT(MONTH FROM a.date) = %s AND EXTRACT(YEAR FROM a.date) = %s"
+                    params.extend([target_month, target_year])
+                except ValueError:
+                    pass # Ignorar si no son números válidos
+            
+            query += " ORDER BY a.date DESC"
+            
+            cursor.execute(query, params)
             
             # Organizar las marcas por empleado y fecha
             for row in cursor:
