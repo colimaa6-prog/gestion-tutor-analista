@@ -139,7 +139,10 @@ def get_dashboard_daily_detail(status):
         return jsonify({'success': True, 'data': []})
         
     placeholders = ','.join(['%s' for _ in authorized_ids])
-    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # Adjust for Mexico time (UTC-6)
+    from datetime import timedelta
+    today = (datetime.utcnow() - timedelta(hours=6)).date()
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -149,11 +152,17 @@ def get_dashboard_daily_detail(status):
             FROM attendance a
             JOIN employees e ON a.employee_id = e.id
             LEFT JOIN branches b ON e.branch_id = b.id
-            WHERE a.date = %s AND a.status = %s AND a.employee_id IN ({placeholders})
+            JOIN attendance_roster ar ON e.id = ar.employee_id
+            WHERE a.date = %s 
+            AND a.status = %s 
+            AND ar.added_by_user_id IN ({placeholders})
             ORDER BY e.full_name ASC
         """, [today, status] + authorized_ids)
         
-        data = [dict(row) for row in cursor.fetchall()]
+        data = []
+        for row in cursor.fetchall():
+            data.append(dict_from_row(row))
+            
         return jsonify({'success': True, 'data': data})
     finally:
         conn.close()
@@ -168,7 +177,10 @@ def get_dashboard_range_detail(status):
         return jsonify({'success': True, 'data': []})
         
     placeholders = ','.join(['%s' for _ in authorized_ids])
-    today = datetime.now().strftime('%Y-%m-%d')
+    
+    # Adjust for Mexico time (UTC-6)
+    from datetime import timedelta
+    today = (datetime.utcnow() - timedelta(hours=6)).date()
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -178,19 +190,22 @@ def get_dashboard_range_detail(status):
             FROM attendance a
             JOIN employees e ON a.employee_id = e.id
             LEFT JOIN branches b ON e.branch_id = b.id
+            JOIN attendance_roster ar ON e.id = ar.employee_id
             WHERE a.status = %s 
             AND a.start_date <= %s 
             AND a.end_date >= %s
-            AND a.employee_id IN ({placeholders})
+            AND ar.added_by_user_id IN ({placeholders})
             ORDER BY e.full_name ASC
         """, [status, today, today] + authorized_ids)
         
         data = []
         for row in cursor.fetchall():
-            item = dict(row)
-            for k, v in item.items():
-                if hasattr(v, 'isoformat'):
-                    item[k] = v.isoformat()
+            item = dict_from_row(row)
+            # Format dates
+            if item.get('start_date'):
+                item['start_date'] = item['start_date'].isoformat() if hasattr(item['start_date'], 'isoformat') else str(item['start_date'])
+            if item.get('end_date'):
+                item['end_date'] = item['end_date'].isoformat() if hasattr(item['end_date'], 'isoformat') else str(item['end_date'])
             data.append(item)
             
         return jsonify({'success': True, 'data': data})
@@ -316,11 +331,11 @@ def dashboard_active_incidents():
     cursor = conn.cursor()
     try:
         cursor.execute(f"""
-            SELECT i.*, e.full_name as reported_by_name, b.name as branch_name
+            SELECT i.*, u.username as reported_by_name, b.name as branch_name
             FROM incidents i
-            JOIN employees e ON i.reported_by = e.id
+            JOIN users u ON i.reported_by = u.id
             LEFT JOIN branches b ON i.branch_id = b.id
-            WHERE i.status IN ('pending', 'in_progress')
+            WHERE i.status IN ('pending', 'in_progress', 'EN PROCESO')
             AND i.reported_by IN ({placeholders})
             ORDER BY i.created_at DESC
         """, authorized_ids)
