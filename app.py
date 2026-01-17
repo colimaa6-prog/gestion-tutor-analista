@@ -278,11 +278,11 @@ def dashboard_stats():
             elif status == 'incapacity':
                 stats['incapacidades'] = count
         
-        # Count active incidents (linked to employees in roster)
+        # Count active incidents (linked to employees in roster via reported_by)
         cursor.execute(f"""
             SELECT COUNT(DISTINCT i.id) as count
             FROM incidents i
-            JOIN attendance_roster ar ON i.employee_id = ar.employee_id
+            JOIN attendance_roster ar ON i.reported_by = ar.employee_id
             WHERE ar.added_by_user_id IN ({placeholders})
             AND i.status IN ('pending', 'in_progress', 'EN PROCESO')
         """, authorized_ids)
@@ -332,12 +332,11 @@ def dashboard_active_incidents():
     cursor = conn.cursor()
     try:
         cursor.execute(f"""
-            SELECT DISTINCT i.*, u.username as reported_by_name, b.name as branch_name, e.full_name as employee_name
+            SELECT DISTINCT i.*, e.full_name as reported_by_name, b.name as branch_name
             FROM incidents i
-            LEFT JOIN users u ON i.reported_by = u.id
+            JOIN employees e ON i.reported_by = e.id
             LEFT JOIN branches b ON i.branch_id = b.id
-            JOIN attendance_roster ar ON i.employee_id = ar.employee_id
-            JOIN employees e ON i.employee_id = e.id
+            JOIN attendance_roster ar ON i.reported_by = ar.employee_id
             WHERE i.status IN ('pending', 'in_progress', 'EN PROCESO')
             AND ar.added_by_user_id IN ({placeholders})
             ORDER BY i.created_at DESC
