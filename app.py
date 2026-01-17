@@ -661,19 +661,29 @@ def reports():
             if not authorized_ids:
                 return jsonify({'success': False, 'message': 'No autorizado'}), 403
             
+            month = request.args.get('month', 0)
+            year = request.args.get('year', 2026)
+            
             placeholders = ','.join(['%s' for _ in authorized_ids])
             
-            # Obtener empleados del roster
+            # Obtener empleados del roster con sus datos de reportes
             # Tutores ven solo lo que ellos agregan
             # Admins ven solo lo que sus tutores supervisados agregan
             cursor.execute(f"""
-                SELECT DISTINCT e.id, e.full_name, e.branch_id, b.name as branch_name
+                SELECT DISTINCT 
+                    e.id, 
+                    e.full_name, 
+                    e.branch_id, 
+                    b.name as branch_name,
+                    r.data as report_data
                 FROM attendance_roster ar
                 JOIN employees e ON ar.employee_id = e.id
                 LEFT JOIN branches b ON e.branch_id = b.id
+                LEFT JOIN reports r ON r.employee_id = e.id 
+                    AND r.month = %s AND r.year = %s
                 WHERE ar.added_by_user_id IN ({placeholders})
                 ORDER BY e.full_name ASC
-            """, authorized_ids)
+            """, [month, year] + authorized_ids)
             
             employees = []
             for row in cursor:
@@ -681,7 +691,8 @@ def reports():
                     'id': row['id'],
                     'full_name': row['full_name'],
                     'branch_id': row['branch_id'],
-                    'branch_name': row['branch_name']
+                    'branch_name': row['branch_name'],
+                    'report_data': row['report_data']  # Include report data
                 })
             
             return jsonify({
