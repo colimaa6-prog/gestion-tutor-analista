@@ -424,6 +424,11 @@ def incident_detail(id):
             ))
             conn.commit()
             return jsonify({'success': True, 'message': 'Incidencia actualizada'})
+    except Exception as e:
+        print(f"Error in incident_detail: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         conn.close()
 
