@@ -268,6 +268,87 @@ def get_dashboard_range_detail(status):
     finally:
         conn.close()
 
+@app.route('/api/dashboard/stats', methods=['GET', 'OPTIONS'])
+def dashboard_stats():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+    
+    authorized_ids = get_authorized_user_ids(int(user_id))
+    if not authorized_ids:
+        return jsonify({'success': True, 'data': {
+            'asistencias': 0,
+            'faltas': 0,
+            'vacaciones': 0,
+            'permisos': 0,
+            'incapacidades': 0,
+            'incidencias_activas': 0
+        }})
+    
+    placeholders = ','.join(['%s' for _ in authorized_ids])
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        # Get today's date
+        today = datetime.now().date()
+        
+        # Count attendances by status for today
+        cursor.execute(f"""
+            SELECT status, COUNT(*) as count
+            FROM attendance
+            WHERE date = %s
+            AND employee_id IN (
+                SELECT employee_id FROM attendance_roster
+                WHERE added_by_user_id IN ({placeholders})
+            )
+            GROUP BY status
+        """, [today] + authorized_ids)
+        
+        stats = {
+            'asistencias': 0,
+            'faltas': 0,
+            'vacaciones': 0,
+            'permisos': 0,
+            'incapacidades': 0,
+            'incidencias_activas': 0
+        }
+        
+        for row in cursor:
+            status = row['status']
+            count = row['count']
+            
+            if status == 'present':
+                stats['asistencias'] = count
+            elif status == 'absent':
+                stats['faltas'] = count
+            elif status == 'vacation':
+                stats['vacaciones'] = count
+            elif status == 'permission':
+                stats['permisos'] = count
+            elif status == 'incapacity':
+                stats['incapacidades'] = count
+        
+        # Count active incidents
+        cursor.execute(f"""
+            SELECT COUNT(*) as count
+            FROM incidents
+            WHERE status IN ('pending', 'in_progress', 'EN PROCESO')
+            AND reported_by IN ({placeholders})
+        """, authorized_ids)
+        
+        result = cursor.fetchone()
+        if result:
+            stats['incidencias_activas'] = result['count']
+        
+        return jsonify({'success': True, 'data': stats})
+    finally:
+        conn.close()
+
 @app.route('/api/dashboard/absences', methods=['GET', 'OPTIONS'])
 def dashboard_absences():
     if request.method == 'OPTIONS': return '', 204
