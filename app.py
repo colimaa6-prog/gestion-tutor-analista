@@ -125,78 +125,7 @@ def login():
 
 # ==================== API: DASHBOARD ====================
 
-@app.route('/api/dashboard/stats', methods=['GET', 'OPTIONS'])
-def dashboard_stats():
-    if request.method == 'OPTIONS':
-        return '', 204
-        
-    user_id = request.args.get('userId')
-    
-    if not user_id:
-        return jsonify({'success': False, 'message': 'userId requerido'}), 400
-    
-    authorized_ids = get_authorized_user_ids(int(user_id))
-    
-    if not authorized_ids:
-        return jsonify({'success': False, 'message': 'No autorizado'}), 403
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        placeholders = ','.join(['%s' for _ in authorized_ids])
-        
-        # Total empleados en roster
-        cursor.execute(f"""
-            SELECT COUNT(DISTINCT ar.employee_id)
-            FROM attendance_roster ar
-            WHERE ar.added_by_user_id IN ({placeholders})
-        """, authorized_ids)
-        total_employees = cursor.fetchone()[0]
-        
-        # Incidencias activas
-        cursor.execute(f"""
-            SELECT COUNT(*)
-            FROM incidents i
-            JOIN employees e ON i.reported_by = e.id
-            JOIN attendance_roster ar ON e.id = ar.employee_id
-            WHERE ar.added_by_user_id IN ({placeholders})
-            AND i.status IN ('pending', 'in_progress')
-        """, authorized_ids)
-        active_incidents = cursor.fetchone()[0]
-        
-        # Asistencias del mes actual
-        if USE_POSTGRES:
-            cursor.execute(f"""
-                SELECT COUNT(*)
-                FROM attendance a
-                JOIN attendance_roster ar ON a.employee_id = ar.employee_id
-                WHERE ar.added_by_user_id IN ({placeholders})
-                AND EXTRACT(MONTH FROM a.date) = EXTRACT(MONTH FROM CURRENT_DATE)
-                AND EXTRACT(YEAR FROM a.date) = EXTRACT(YEAR FROM CURRENT_DATE)
-            """, authorized_ids)
-        else:
-            cursor.execute(f"""
-                SELECT COUNT(*)
-                FROM attendance a
-                JOIN attendance_roster ar ON a.employee_id = ar.employee_id
-                WHERE ar.added_by_user_id IN ({placeholders})
-                AND strftime('%m', a.date) = strftime('%m', 'now')
-                AND strftime('%Y', a.date) = strftime('%Y', 'now')
-            """, authorized_ids)
-        monthly_attendance = cursor.fetchone()[0]
-        
-        return jsonify({
-            'success': True,
-            'stats': {
-                'totalEmployees': total_employees,
-                'activeIncidents': active_incidents,
-                'monthlyAttendance': monthly_attendance,
-                'pendingReports': 0
-            }
-        })
-    finally:
-        conn.close()
+
 
 # ==================== API: DASHBOARD DETAILS ====================
 
