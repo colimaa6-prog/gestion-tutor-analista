@@ -278,12 +278,13 @@ def dashboard_stats():
             elif status == 'incapacity':
                 stats['incapacidades'] = count
         
-        # Count active incidents (simplified query to match /api/incidents logic)
+        # Count active incidents (linked to employees in roster)
         cursor.execute(f"""
-            SELECT COUNT(*) as count
-            FROM incidents
-            WHERE status IN ('pending', 'in_progress', 'EN PROCESO')
-            AND reported_by IN ({placeholders})
+            SELECT COUNT(DISTINCT i.id) as count
+            FROM incidents i
+            JOIN attendance_roster ar ON i.employee_id = ar.employee_id
+            WHERE ar.added_by_user_id IN ({placeholders})
+            AND i.status IN ('pending', 'in_progress', 'EN PROCESO')
         """, authorized_ids)
         result = cursor.fetchone()
         if result:
@@ -331,12 +332,14 @@ def dashboard_active_incidents():
     cursor = conn.cursor()
     try:
         cursor.execute(f"""
-            SELECT i.*, u.username as reported_by_name, b.name as branch_name
+            SELECT DISTINCT i.*, u.username as reported_by_name, b.name as branch_name, e.full_name as employee_name
             FROM incidents i
-            JOIN users u ON i.reported_by = u.id
+            LEFT JOIN users u ON i.reported_by = u.id
             LEFT JOIN branches b ON i.branch_id = b.id
+            JOIN attendance_roster ar ON i.employee_id = ar.employee_id
+            JOIN employees e ON i.employee_id = e.id
             WHERE i.status IN ('pending', 'in_progress', 'EN PROCESO')
-            AND i.reported_by IN ({placeholders})
+            AND ar.added_by_user_id IN ({placeholders})
             ORDER BY i.created_at DESC
         """, authorized_ids)
         
