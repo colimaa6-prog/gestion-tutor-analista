@@ -598,6 +598,11 @@ def mark_attendance():
     employee_id = data.get('employee_id')
     date = data.get('date')
     status = data.get('status')
+    comment = data.get('comment', '')
+    arrival_time = data.get('arrival_time', '')
+    permission_type = data.get('permission_type', '')
+    start_date = data.get('start_date') or None
+    end_date = data.get('end_date') or None
     
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -610,13 +615,19 @@ def mark_attendance():
                 WHERE employee_id = %s AND date = %s
             """, (employee_id, date))
         else:
-            # Insert or update attendance record
+            # Insert or update attendance record with all fields
             cursor.execute("""
-                INSERT INTO attendance (employee_id, date, status)
-                VALUES (%s, %s, %s)
+                INSERT INTO attendance (employee_id, date, status, comment, arrival_time, permission_type, start_date, end_date)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (employee_id, date)
-                DO UPDATE SET status = EXCLUDED.status
-            """, (employee_id, date, status))
+                DO UPDATE SET 
+                    status = EXCLUDED.status,
+                    comment = EXCLUDED.comment,
+                    arrival_time = EXCLUDED.arrival_time,
+                    permission_type = EXCLUDED.permission_type,
+                    start_date = EXCLUDED.start_date,
+                    end_date = EXCLUDED.end_date
+            """, (employee_id, date, status, comment, arrival_time, permission_type, start_date, end_date))
         
         conn.commit()
         return jsonify({'success': True})
