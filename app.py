@@ -400,8 +400,11 @@ def incident_detail(id):
             # Convert empty strings to None for date fields
             start_date = data.get('start_date') or None
             end_date = data.get('end_date') or None
+            
+            # Frontend sends 'employee_id' but we need 'reported_by'
+            # Also handle 'branch_id' which may not be sent
+            reported_by = data.get('reported_by') or data.get('employee_id') or None
             branch_id = data.get('branch_id') or None
-            reported_by = data.get('reported_by') or None
             
             print(f"Parsed values - branch_id: {branch_id}, reported_by: {reported_by}, type: {data.get('type')}, status: {data.get('status')}")
             
