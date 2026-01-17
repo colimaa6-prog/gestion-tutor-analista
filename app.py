@@ -395,12 +395,15 @@ def incident_detail(id):
             
         elif request.method == 'PUT':
             data = request.json
+            print(f"PUT /api/incidents/{id} - Received data: {data}")
             
             # Convert empty strings to None for date fields
             start_date = data.get('start_date') or None
             end_date = data.get('end_date') or None
             branch_id = data.get('branch_id') or None
             reported_by = data.get('reported_by') or None
+            
+            print(f"Parsed values - branch_id: {branch_id}, reported_by: {reported_by}, type: {data.get('type')}, status: {data.get('status')}")
             
             cursor.execute("""
                 UPDATE incidents 
@@ -423,6 +426,7 @@ def incident_detail(id):
                 id
             ))
             conn.commit()
+            print(f"Successfully updated incident {id}")
             return jsonify({'success': True, 'message': 'Incidencia actualizada'})
     except Exception as e:
         print(f"Error in incident_detail: {e}")
