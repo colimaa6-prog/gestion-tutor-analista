@@ -10,7 +10,10 @@ async function loadReportes() {
     // Fetch archived months
     let archivedMonthsHTML = '';
     try {
-        const res = await fetch(`${API_BASE_URL}/reports/archived-months`);
+        const userStr = sessionStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const userId = user ? user.id : '';
+        const res = await fetch(`${API_BASE_URL}/reports/archived-months?userId=${userId}`);
         const result = await res.json();
 
         if (result.success && result.data.length > 0) {
