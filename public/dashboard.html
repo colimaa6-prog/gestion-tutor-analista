@@ -596,6 +596,14 @@
                         <h3 style="margin: 0; font-size: 1.5rem; color: #1e293b;">${monthNames[currentMonth]} ${currentYear}</h3>
                         ${monthBadge}
                     </div>
+                    
+                    <!-- Branch Filter -->
+                    <div style="flex: 1; display: flex; justify-content: center;">
+                         <select id="attendanceBranchFilter" onchange="filterAttendanceTable()" style="padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; min-width: 200px; color: #475569;">
+                            <option value="">Todas las sucursales</option>
+                        </select>
+                    </div>
+
                     <button class="btn-primary" onclick="openAddRosterModal()" style="width: auto; padding: 0.6rem 1.2rem;">
                         + Agregar Colaborador
                     </button>
@@ -773,6 +781,7 @@
 
                 const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
                 let html = '';
+                const branches = new Set();
 
                 // Map status to symbol
                 const statusMap = {
@@ -780,7 +789,9 @@
                 };
 
                 result.data.forEach(emp => {
-                    html += `<tr>
+                    if (emp.branch_name) branches.add(emp.branch_name);
+
+                    html += `<tr data-branch="${emp.branch_name || ''}">
                         <td style="padding: 0.8rem; position: sticky; left: 0; background: white; z-index: 5; box-shadow: 4px 0 8px -4px rgba(0,0,0,0.1);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
                                 <div>
@@ -824,7 +835,36 @@
                 });
                 tbody.innerHTML = html;
 
+                // Populate Branch Filter
+                const filterSelect = document.getElementById('attendanceBranchFilter');
+                if (filterSelect) {
+                    const currentVal = filterSelect.value;
+                    filterSelect.innerHTML = '<option value="">Todas las sucursales</option>';
+                    Array.from(branches).sort().forEach(b => {
+                        const opt = document.createElement('option');
+                        opt.value = b;
+                        opt.textContent = b;
+                        filterSelect.appendChild(opt);
+                    });
+                    filterSelect.value = currentVal;
+                    filterAttendanceTable(); // Apply existing filter
+                }
+
             } catch (e) { console.error(e); }
+        }
+
+        function filterAttendanceTable() {
+            const filter = document.getElementById('attendanceBranchFilter').value;
+            const rows = document.querySelectorAll('#attendanceBody tr');
+            rows.forEach(row => {
+                const branch = row.getAttribute('data-branch');
+                // show if no filter selected or branch matches
+                if (!filter || branch === filter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
 
         async function removeFromRoster(empId, empName) {
@@ -1149,7 +1189,14 @@
             // Header with Add Button
             content.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <p>Total de registros: <span id="totalCount">...</span></p>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+                        <p style="margin: 0;">Total de registros: <span id="totalCount">...</span></p>
+                         <div style="max-width: 250px; width: 100%;">
+                             <select id="jefesBranchFilter" onchange="filterJefesTable()" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e1; border-radius: 6px; color: #475569;">
+                                 <option value="">Todas las sucursales</option>
+                            </select>
+                        </div>
+                    </div>
                     <button class="btn-primary" onclick="openAddModal()" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
                         + Agregar Nuevo
                     </button>
@@ -1170,6 +1217,8 @@
                     const employees = resultEmp.data;
                     document.getElementById('totalCount').innerText = employees.length;
 
+                    const branches = new Set();
+
                     let html = `
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead>
@@ -1181,12 +1230,13 @@
                                     <th style="padding: 1rem; color: var(--text-light);">Acciones</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="jefesTableBody">
                     `;
 
                     employees.forEach(emp => {
+                        if (emp.branch_name) branches.add(emp.branch_name);
                         html += `
-                            <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.05)'" onmouseout="this.style.background='transparent'">
+                            <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.2s;" onmouseover="this.style.background='rgba(79, 70, 229, 0.05)'" onmouseout="this.style.background='transparent'" data-branch="${emp.branch_name || ''}">
                                 <td style="padding: 1rem; font-weight: 500;">${emp.full_name}</td>
                                 <td style="padding: 1rem;">${emp.branch_name || 'Sin asignar'}</td>
                                 <td style="padding: 1rem;">${emp.hire_date || '-'}</td>
@@ -1199,6 +1249,18 @@
                         `;
                     });
 
+                    // Populate Filter
+                    const filterSelect = document.getElementById('jefesBranchFilter');
+                    if (filterSelect) {
+                        filterSelect.innerHTML = '<option value="">Todas las sucursales</option>';
+                        Array.from(branches).sort().forEach(b => {
+                            const opt = document.createElement('option');
+                            opt.value = b;
+                            opt.textContent = b;
+                            filterSelect.appendChild(opt);
+                        });
+                    }
+
                     html += '</tbody></table>';
                     document.getElementById('tableContainer').innerHTML = html;
                 } else {
@@ -1208,6 +1270,20 @@
                 console.error(err);
                 document.getElementById('tableContainer').innerHTML = '<p style="color: red;">Error de conexión.</p>';
             }
+        }
+
+        function filterJefesTable() {
+            const filter = document.getElementById('jefesBranchFilter').value;
+            const rows = document.querySelectorAll('#jefesTableBody tr');
+            rows.forEach(row => {
+                const branch = row.getAttribute('data-branch');
+                // show if no filter or matches
+                if (!filter || branch === filter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
 
         // --- INCIDENTS LOGIC ---
@@ -1222,7 +1298,14 @@
             // Header with New Report Button
             const content = document.getElementById('contentArea');
             content.innerHTML = `
-                <div style="display: flex; justify-content: flex-end; align-items: center; margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                     <!-- Branch Filter -->
+                    <div style="flex: 1; max-width: 300px;">
+                         <select id="incidentsBranchFilter" onchange="filterIncidentsTable()" style="width: 100%; padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; color: #475569;">
+                            <option value="">Todas las sucursales</option>
+                        </select>
+                    </div>
+
                     <button class="btn-primary" onclick="openNewIncidentModal()" style="width: auto; padding: 0.6rem 1.2rem; font-size: 0.9rem;">
                         + Nuevo Reporte
                     </button>
@@ -1340,17 +1423,18 @@
                     <tbody>
             `;
 
+            const branches = new Set();
+
             incidents.forEach(inc => {
                 let statusColor = '#e2e8f0'; // Default gray
-
                 if (inc.status === 'EN PROCESO') statusColor = '#fef08a'; // Yellow 200
                 if (inc.status === 'CONCLUIDO') statusColor = '#bbf7d0'; // Green 200
-                if (inc.status === 'SIN RESPUESTA') {
-                    statusColor = '#fca5a5'; // Red 300
-                }
+                if (inc.status === 'SIN RESPUESTA') statusColor = '#fca5a5'; // Red 300
+
+                if (inc.branch_name) branches.add(inc.branch_name);
 
                 html += `
-                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <tr style="border-bottom: 1px solid #f1f5f9;" data-branch="${inc.branch_name || ''}">
                         <td style="padding: 1rem;">
                             <span style="display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; background-color: ${statusColor}; font-weight: 500; font-size: 0.85rem; color: #1e293b;">
                                 ${inc.status}
@@ -1374,6 +1458,34 @@
 
             html += '</tbody></table>';
             document.getElementById('incidentsTableContainer').innerHTML = html;
+
+            // Populate Branch Filter
+            const filterSelect = document.getElementById('incidentsBranchFilter');
+            if (filterSelect) {
+                const currentVal = filterSelect.value;
+                filterSelect.innerHTML = '<option value="">Todas las sucursales</option>';
+                Array.from(branches).sort().forEach(b => {
+                    const opt = document.createElement('option');
+                    opt.value = b;
+                    opt.textContent = b;
+                    filterSelect.appendChild(opt);
+                });
+                filterSelect.value = currentVal;
+                filterIncidentsTable();
+            }
+        }
+
+        function filterIncidentsTable() {
+            const filter = document.getElementById('incidentsBranchFilter').value;
+            const rows = document.querySelectorAll('#incidentsTableContainer tbody tr');
+            rows.forEach(row => {
+                const branch = row.getAttribute('data-branch');
+                if (!filter || branch === filter) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
         }
 
         async function openNewIncidentModal() {

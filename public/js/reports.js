@@ -71,6 +71,14 @@ async function loadReportes() {
                 <h3 style="margin: 0; font-size: 1.5rem; color: #1e293b;">${monthNames[currentMonth]} ${currentYear}</h3>
                 ${monthBadge}
             </div>
+            
+            <!-- Branch Filter -->
+            <div style="flex: 1; display: flex; justify-content: center;">
+                 <select id="reportsBranchFilter" onchange="filterReportsTable()" style="padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; min-width: 200px; color: #475569;">
+                    <option value="">Todas las sucursales</option>
+                </select>
+            </div>
+
             <div style="font-size: 0.9rem; color: #64748b;">
                 <span style="margin-right: 1rem;">ℹ️ Click para seleccionar: ✅ Palomita o ❌ Equis</span>
             </div>
@@ -140,14 +148,18 @@ async function fetchAndRenderReports() {
 
         const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
         let html = '';
+        const branches = new Set();
 
         result.employees.forEach(emp => {
+            if (emp.branch_name) branches.add(emp.branch_name);
+            const branchAttr = `data-branch="${emp.branch_name || ''}"`;
+
             // Parse existing data
             const reportData = emp.report_data ? JSON.parse(emp.report_data) : { faltantes: {}, guias: {}, tableros: {} };
 
             // --- ROW 1: Employee Header ---
             html += `
-                <tr style="background: #f8fafc;">
+                <tr style="background: #f8fafc;" ${branchAttr}>
                     <td colspan="33" style="padding: 1rem; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #1e293b;">
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <div style="width: 32px; height: 32px; background: #4f46e5; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
@@ -162,7 +174,7 @@ async function fetchAndRenderReports() {
 
             // --- ROW 2: Reporte de Faltantes (Daily) ---
             html += `
-                <tr>
+                <tr ${branchAttr}>
                     <td style="padding: 0.3rem; background: #f1f5f9; font-size: 0.85rem; font-weight: 500; min-width: 150px; border-bottom: 1px solid #cbd5e1;">Reporte de faltantes</td>
             `;
             // Days 1-31
@@ -179,7 +191,7 @@ async function fetchAndRenderReports() {
 
             // --- ROW 3: Reporte de Guías (Quincenal - 2 cells) ---
             html += `
-                <tr>
+                <tr ${branchAttr}>
                     <td style="padding: 0.3rem; background: #f1f5f9; font-size: 0.85rem; font-weight: 500; min-width: 150px; border-bottom: 1px solid #cbd5e1;">Reporte de guías y envió</td>
             `;
             // 2 cells spanning half month each roughly. 
@@ -195,23 +207,14 @@ async function fetchAndRenderReports() {
             html += `<td style="border-bottom: 1px solid #cbd5e1; background: #e2e8f0; width: 4px;"></td>`; // Spacer
             html += createCell('guias', emp.id, 2, q2Status, q2Comment, '2 Quincena', `colspan="${Math.max(1, 31 - 15)}"`, true); // Span remaining
 
-            // Pad if necessary (though colspan handles it mostly, strict grid might need empty cells if we used single cells. Here we use colspan)
-            // Actually, previous row had 32 columns (1 label + 31 days). 
-            // This row: 1 label + 15 + 1 + remaining. Total = 1 + 15 + 1 + (15 or 16) = 32 approx. 
-            // Wait, 31 cells + 1 label = 32 columns.
-            // Colspan 15 covers 1-15. Spacer covers 1? Remaining covers ~15.
             html += '</tr>';
 
             // --- ROW 4: Evidencia de tableros y bitacora (Weekly - 4 cells) ---
             html += `
-                <tr>
+                <tr ${branchAttr}>
                     <td style="padding: 0.3rem; background: #f1f5f9; font-size: 0.85rem; font-weight: 500; min-width: 150px; border-bottom: 2px solid #94a3b8;">Evidencia de tableros y bitacora</td>
             `;
             // 4 cells. 31 / 4 = ~7.75. Let's do spans of 7, 8, 8, 8 or similar.
-            // Week 1: 1-7
-            // Week 2: 8-15
-            // Week 3: 16-23
-            // Week 4: 24-End
             const weeks = [
                 { id: 1, span: 7, label: '1 Semana' },
                 { id: 2, span: 8, label: '2 Semana' },
@@ -223,15 +226,26 @@ async function fetchAndRenderReports() {
                 const st = reportData.tableros && reportData.tableros[w.id] ? reportData.tableros[w.id].status : null;
                 const cm = reportData.tableros && reportData.tableros[w.id] ? reportData.tableros[w.id].comment : '';
                 html += createCell('tableros', emp.id, w.id, st, cm, w.label, `colspan="${w.span}"`, true);
-                if (idx < 3) {
-                    // html += `<td style="border-bottom: 2px solid #94a3b8; background: #e2e8f0; width: 2px;"></td>`;
-                    // Actually let's just use borders on the cells
-                }
             });
             html += '</tr>';
         });
 
         document.getElementById('reportsBody').innerHTML = html;
+
+        // Populate Branch Filter
+        const filterSelect = document.getElementById('reportsBranchFilter');
+        if (filterSelect) {
+            const currentVal = filterSelect.value;
+            filterSelect.innerHTML = '<option value="">Todas las sucursales</option>';
+            Array.from(branches).sort().forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.textContent = b;
+                filterSelect.appendChild(opt);
+            });
+            filterSelect.value = currentVal;
+            filterReportsTable();
+        }
 
     } catch (e) {
         console.error(e);
