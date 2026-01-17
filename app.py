@@ -363,13 +363,27 @@ def incidents_list():
     cursor = conn.cursor()
     try:
         if request.method == 'GET':
-            cursor.execute("""
+            user_id = request.args.get('userId')
+            if not user_id:
+                return jsonify({'success': False, 'message': 'userId requerido'}), 400
+                
+            authorized_ids = get_authorized_user_ids(int(user_id))
+            if not authorized_ids:
+                return jsonify({'success': True, 'data': []})
+                
+            placeholders = ','.join(['%s' for _ in authorized_ids])
+            
+            # Filter incidents by supervised employees (via roster)
+            cursor.execute(f"""
                 SELECT i.*, e.full_name as reported_by_name, b.name as branch_name 
                 FROM incidents i
                 JOIN employees e ON i.reported_by = e.id
                 LEFT JOIN branches b ON i.branch_id = b.id
+                JOIN attendance_roster ar ON i.reported_by = ar.employee_id
+                WHERE ar.added_by_user_id IN ({placeholders})
                 ORDER BY i.created_at DESC
-            """)
+            """, authorized_ids)
+            
             data = []
             for row in cursor.fetchall():
                 item = dict(row)

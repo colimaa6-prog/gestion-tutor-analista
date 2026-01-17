@@ -1297,7 +1297,10 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/incidents`);
+                const userStr = sessionStorage.getItem('user');
+                const user = userStr ? JSON.parse(userStr) : null;
+                const userId = user ? user.id : '';
+                const response = await fetch(`${API_BASE_URL}/incidents?userId=${userId}`);
                 const result = await response.json();
 
                 if (result.success) {
