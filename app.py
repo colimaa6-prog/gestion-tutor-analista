@@ -379,6 +379,54 @@ def incidents_list():
     finally:
         conn.close()
 
+@app.route('/api/incidents/<int:id>', methods=['PUT', 'DELETE', 'OPTIONS'])
+def incident_detail(id):
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if request.method == 'DELETE':
+            cursor.execute("DELETE FROM incidents WHERE id = %s", (id,))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Incidencia eliminada'})
+            
+        elif request.method == 'PUT':
+            data = request.json
+            
+            # Convert empty strings to None for date fields
+            start_date = data.get('start_date') or None
+            end_date = data.get('end_date') or None
+            branch_id = data.get('branch_id') or None
+            reported_by = data.get('reported_by') or None
+            
+            cursor.execute("""
+                UPDATE incidents 
+                SET branch_id = %s,
+                    reported_by = %s,
+                    type = %s,
+                    status = %s,
+                    description = %s,
+                    start_date = %s,
+                    end_date = %s
+                WHERE id = %s
+            """, (
+                branch_id,
+                reported_by,
+                data.get('type'),
+                data.get('status'),
+                data.get('description'),
+                start_date,
+                end_date,
+                id
+            ))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Incidencia actualizada'})
+    finally:
+        conn.close()
+
 # ==================== API: BRANCHES ====================
 
 @app.route('/api/branches', methods=['GET', 'OPTIONS'])
