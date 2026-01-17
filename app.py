@@ -223,8 +223,9 @@ def dashboard_stats():
     cursor = conn.cursor()
     
     try:
-        # Get today's date
-        today = datetime.now().date()
+        # Get today's date adjusted for Mexico time (UTC-6)
+        from datetime import timedelta
+        today = (datetime.utcnow() - timedelta(hours=6)).date()
         
         # Count attendances by status for today
         cursor.execute(f"""
@@ -262,14 +263,13 @@ def dashboard_stats():
             elif status == 'incapacity':
                 stats['incapacidades'] = count
         
-        # Count active incidents
+        # Count active incidents (simplified query to match /api/incidents logic)
         cursor.execute(f"""
             SELECT COUNT(*) as count
             FROM incidents
             WHERE status IN ('pending', 'in_progress', 'EN PROCESO')
             AND reported_by IN ({placeholders})
         """, authorized_ids)
-        
         result = cursor.fetchone()
         if result:
             stats['incidencias_activas'] = result['count']
