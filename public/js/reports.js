@@ -375,3 +375,18 @@ function loadCurrentReportsMonth() {
     loadReportes();
 }
 
+
+function filterReportsTable() {
+    const filter = document.getElementById('reportsBranchFilter').value;
+    const rows = document.querySelectorAll('#reportsBody tr');
+    rows.forEach(row => {
+        const branch = row.getAttribute('data-branch');
+        if (branch !== null) {
+             if (!filter || branch === filter) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    });
+}
