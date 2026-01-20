@@ -620,13 +620,40 @@ def employees():
         elif request.method == 'POST':
             data = request.json
             hire_date = data.get('hire_date') or None
-            cursor.execute("""
-                INSERT INTO employees (full_name, branch_id, hire_date, status)
-                VALUES (%s, %s, %s, 'active')
-            """, (data.get('full_name'), data.get('branch_id'), hire_date))
-            conn.commit()
             
-            return jsonify({'success': True, 'message': 'Empleado creado'})
+            try:
+                cursor.execute("""
+                    INSERT INTO employees (full_name, branch_id, hire_date, status)
+                    VALUES (%s, %s, %s, 'active')
+                """, (data.get('full_name'), data.get('branch_id'), hire_date))
+                conn.commit()
+                
+                return jsonify({'success': True, 'message': 'Empleado creado'})
+            except Exception as insert_error:
+                conn.rollback()
+                # Si hay error de secuencia, intentar arreglarlo
+                if 'duplicate key' in str(insert_error) or 'unique constraint' in str(insert_error):
+                    try:
+                        # Arreglar la secuencia
+                        cursor.execute("SELECT setval('employees_id_seq', (SELECT MAX(id) FROM employees))")
+                        conn.commit()
+                        # Reintentar el insert
+                        cursor.execute("""
+                            INSERT INTO employees (full_name, branch_id, hire_date, status)
+                            VALUES (%s, %s, %s, 'active')
+                        """, (data.get('full_name'), data.get('branch_id'), hire_date))
+                        conn.commit()
+                        return jsonify({'success': True, 'message': 'Empleado creado'})
+                    except Exception as retry_error:
+                        conn.rollback()
+                        print(f"Error al crear empleado después de arreglar secuencia: {retry_error}")
+                        return jsonify({'success': False, 'message': f'Error al crear empleado: {str(retry_error)}'}), 500
+                else:
+                    print(f"Error al crear empleado: {insert_error}")
+                    return jsonify({'success': False, 'message': f'Error al crear empleado: {str(insert_error)}'}), 500
+    except Exception as e:
+        print(f"Error general en employees: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         conn.close()
 
