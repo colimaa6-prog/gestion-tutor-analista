@@ -545,18 +545,43 @@ def get_branches():
                 return jsonify({'success': False, 'message': 'El nombre de la sucursal es obligatorio'}), 400
             
             # Verificar si ya existe una sucursal con ese nombre
-            cursor.execute("SELECT id FROM branches WHERE name = %s", (branch_name,))
+            cursor.execute("SELECT id, name FROM branches WHERE name = %s", (branch_name,))
             existing = cursor.fetchone()
             
             if existing:
-                return jsonify({'success': False, 'message': 'Ya existe una sucursal con ese nombre'}), 400
+                # Si ya existe, retornar el ID existente en lugar de error
+                return jsonify({'success': True, 'message': 'Sucursal ya existe', 'data': {'id': existing['id'], 'name': existing['name']}})
             
-            # Insertar la nueva sucursal
-            cursor.execute("INSERT INTO branches (name) VALUES (%s) RETURNING id", (branch_name,))
-            new_id = cursor.fetchone()['id']
-            conn.commit()
-            
-            return jsonify({'success': True, 'message': 'Sucursal creada correctamente', 'data': {'id': new_id, 'name': branch_name}})
+            try:
+                # Insertar la nueva sucursal sin especificar ID (usa DEFAULT)
+                cursor.execute("INSERT INTO branches (name) VALUES (%s) RETURNING id", (branch_name,))
+                new_id = cursor.fetchone()['id']
+                conn.commit()
+                
+                return jsonify({'success': True, 'message': 'Sucursal creada correctamente', 'data': {'id': new_id, 'name': branch_name}})
+            except Exception as insert_error:
+                conn.rollback()
+                # Si hay error de secuencia, intentar arreglarlo
+                if 'duplicate key' in str(insert_error) or 'unique constraint' in str(insert_error):
+                    try:
+                        # Arreglar la secuencia
+                        cursor.execute("SELECT setval('branches_id_seq', (SELECT MAX(id) FROM branches))")
+                        conn.commit()
+                        # Reintentar el insert
+                        cursor.execute("INSERT INTO branches (name) VALUES (%s) RETURNING id", (branch_name,))
+                        new_id = cursor.fetchone()['id']
+                        conn.commit()
+                        return jsonify({'success': True, 'message': 'Sucursal creada correctamente', 'data': {'id': new_id, 'name': branch_name}})
+                    except Exception as retry_error:
+                        conn.rollback()
+                        print(f"Error al crear sucursal después de arreglar secuencia: {retry_error}")
+                        return jsonify({'success': False, 'message': f'Error al crear sucursal: {str(retry_error)}'}), 500
+                else:
+                    print(f"Error al crear sucursal: {insert_error}")
+                    return jsonify({'success': False, 'message': f'Error al crear sucursal: {str(insert_error)}'}), 500
+    except Exception as e:
+        print(f"Error general en get_branches: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         conn.close()
 
@@ -594,13 +619,48 @@ def employees():
         
         elif request.method == 'POST':
             data = request.json
+            hire_date = data.get('hire_date') or None
             cursor.execute("""
-                INSERT INTO employees (full_name, branch_id, status)
-                VALUES (%s, %s, 'active')
-            """, (data.get('full_name'), data.get('branch_id')))
+                INSERT INTO employees (full_name, branch_id, hire_date, status)
+                VALUES (%s, %s, %s, 'active')
+            """, (data.get('full_name'), data.get('branch_id'), hire_date))
             conn.commit()
             
             return jsonify({'success': True, 'message': 'Empleado creado'})
+    finally:
+        conn.close()
+
+@app.route('/api/employees/<int:id>', methods=['PUT', 'DELETE', 'OPTIONS'])
+def employee_detail(id):
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if request.method == 'DELETE':
+            cursor.execute("DELETE FROM employees WHERE id = %s", (id,))
+            conn.commit()
+            return jsonify({'success': True, 'message': 'Empleado eliminado'})
+            
+        elif request.method == 'PUT':
+            data = request.json
+            hire_date = data.get('hire_date') or None
+            
+            cursor.execute("""
+                UPDATE employees 
+                SET full_name = %s,
+                    branch_id = %s,
+                    hire_date = %s
+                WHERE id = %s
+            """, (data.get('full_name'), data.get('branch_id'), hire_date, id))
+            conn.commit()
+            
+            return jsonify({'success': True, 'message': 'Empleado actualizado'})
+    except Exception as e:
+        print(f"Error in employee_detail: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         conn.close()
 
