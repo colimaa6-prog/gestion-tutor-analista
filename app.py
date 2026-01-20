@@ -524,7 +524,7 @@ def get_supervised_tutors():
 
 # ==================== API: BRANCHES ====================
 
-@app.route('/api/branches', methods=['GET', 'OPTIONS'])
+@app.route('/api/branches', methods=['GET', 'POST', 'OPTIONS'])
 def get_branches():
     if request.method == 'OPTIONS':
         return '', 204
@@ -532,9 +532,31 @@ def get_branches():
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT * FROM branches ORDER BY name ASC")
-        data = [dict(row) for row in cursor.fetchall()]
-        return jsonify({'success': True, 'data': data})
+        if request.method == 'GET':
+            cursor.execute("SELECT * FROM branches ORDER BY name ASC")
+            data = [dict(row) for row in cursor.fetchall()]
+            return jsonify({'success': True, 'data': data})
+        
+        elif request.method == 'POST':
+            data = request.json
+            branch_name = data.get('name')
+            
+            if not branch_name:
+                return jsonify({'success': False, 'message': 'El nombre de la sucursal es obligatorio'}), 400
+            
+            # Verificar si ya existe una sucursal con ese nombre
+            cursor.execute("SELECT id FROM branches WHERE name = %s", (branch_name,))
+            existing = cursor.fetchone()
+            
+            if existing:
+                return jsonify({'success': False, 'message': 'Ya existe una sucursal con ese nombre'}), 400
+            
+            # Insertar la nueva sucursal
+            cursor.execute("INSERT INTO branches (name) VALUES (%s) RETURNING id", (branch_name,))
+            new_id = cursor.fetchone()['id']
+            conn.commit()
+            
+            return jsonify({'success': True, 'message': 'Sucursal creada correctamente', 'data': {'id': new_id, 'name': branch_name}})
     finally:
         conn.close()
 

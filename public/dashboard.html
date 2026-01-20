@@ -1749,11 +1749,14 @@
                 const res = await fetch(`${API_BASE_URL}/branches`);
                 const data = await res.json();
                 if (data.success) {
-                    const select = document.getElementById('newEmpBranch');
-                    select.innerHTML = '<option value="">Selecciona una sucursal</option>';
-                    data.data.forEach(b => {
-                        select.innerHTML += `<option value="${b.id}">${b.name}</option>`;
-                    });
+                    // Poblar el datalist para el modal de agregar (permite escribir manualmente)
+                    const datalist = document.getElementById('branchDatalist');
+                    if (datalist) {
+                        datalist.innerHTML = '';
+                        data.data.forEach(b => {
+                            datalist.innerHTML += `<option value="${b.name}" data-id="${b.id}">`;
+                        });
+                    }
                 }
             } catch (e) { console.error('Error loading branches', e); }
         }
@@ -1764,29 +1767,65 @@
 
         async function saveEmployee() {
             const name = document.getElementById('newEmpName').value;
-            const branch = document.getElementById('newEmpBranch').value;
+            const branchInput = document.getElementById('newEmpBranch').value.trim();
             const date = document.getElementById('newEmpDate').value;
 
-            if (!name || !branch) {
+            if (!name || !branchInput) {
                 showToast('Nombre y Sucursal son obligatorios', 'warning');
                 return;
             }
 
             try {
+                // Verificar si la sucursal existe en el datalist
+                const datalist = document.getElementById('branchDatalist');
+                const options = datalist.querySelectorAll('option');
+                let branchId = null;
+                let branchName = branchInput;
+
+                // Buscar si coincide con una sucursal existente
+                for (let option of options) {
+                    if (option.value === branchInput) {
+                        branchId = option.getAttribute('data-id');
+                        break;
+                    }
+                }
+
+                // Si no existe, crear nueva sucursal primero
+                if (!branchId) {
+                    const branchRes = await fetch(`${API_BASE_URL}/branches`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: branchName })
+                    });
+                    const branchResult = await branchRes.json();
+                    if (branchResult.success) {
+                        branchId = branchResult.data.id;
+                    } else {
+                        showToast('Error al crear la sucursal: ' + branchResult.message, 'error');
+                        return;
+                    }
+                }
+
+                // Ahora crear el empleado con el branch_id
                 const res = await fetch(`${API_BASE_URL}/employees`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ full_name: name, branch_id: branch, hire_date: date })
+                    body: JSON.stringify({ full_name: name, branch_id: branchId, hire_date: date })
                 });
                 const result = await res.json();
                 if (result.success) {
                     showToast('Colaborador agregado correctamente', 'success');
                     document.getElementById('addModal').style.display = 'none';
+                    // Limpiar el formulario
+                    document.getElementById('newEmpName').value = '';
+                    document.getElementById('newEmpBranch').value = '';
+                    document.getElementById('newEmpDate').value = '';
                     loadJefesOficina(); // Reload table
                 } else {
                     showToast('Error: ' + result.message, 'error');
                 }
             } catch (e) {
+                console.error('Error al guardar:', e);
                 showToast('Error al guardar', 'error');
             }
         }
@@ -1881,10 +1920,14 @@
             <div style="margin-bottom: 1rem;">
                 <label
                     style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Sucursal</label>
-                <select id="newEmpBranch"
+                <input type="text" id="newEmpBranch" list="branchDatalist"
+                    placeholder="Selecciona o escribe una sucursal..."
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
-                    <option value="">Cargando sucursales...</option>
-                </select>
+                <datalist id="branchDatalist">
+                    <!-- Las opciones se cargan dinámicamente -->
+                </datalist>
+                <small style="display: block; margin-top: 0.25rem; font-size: 0.8rem; color: #94a3b8;">Puedes
+                    seleccionar de la lista o escribir una nueva sucursal</small>
             </div>
 
             <div style="margin-bottom: 1.5rem;">
