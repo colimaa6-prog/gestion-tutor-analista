@@ -722,6 +722,9 @@
             `);
 
             fetchAndRenderAttendance();
+
+            // Iniciar auto-refresco cada 30 segundos
+            startAutoRefresh();
         }
 
         // Load specific month data
@@ -763,6 +766,9 @@
         }
 
         let totalEmployees = []; // Store for search
+
+        // Variable para el intervalo de auto-refresco
+        let autoRefreshInterval = null;
 
         async function fetchAndRenderAttendance() {
             try {
@@ -851,6 +857,26 @@
                 }
 
             } catch (e) { console.error(e); }
+        }
+
+        // Función para iniciar auto-refresco
+        function startAutoRefresh() {
+            // Limpiar intervalo previo si existe
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+            // Refrescar cada 30 segundos
+            autoRefreshInterval = setInterval(() => {
+                fetchAndRenderAttendance();
+            }, 30000);
+        }
+
+        // Función para detener auto-refresco
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
         }
 
         function filterAttendanceTable() {
@@ -1097,27 +1123,74 @@
                 const endInput = document.getElementById('formEndDate');
                 start_date = startInput ? startInput.value : null;
                 end_date = endInput ? endInput.value : null;
+
+                // Validar que ambas fechas estén presentes
+                if (!start_date || !end_date) {
+                    showToast('Por favor selecciona fecha de inicio y fin', 'warning');
+                    return;
+                }
+
+                // Validar que la fecha de fin no sea anterior a la de inicio
+                if (new Date(end_date) < new Date(start_date)) {
+                    showToast('La fecha de fin no puede ser anterior a la fecha de inicio', 'warning');
+                    return;
+                }
             }
 
             try {
-                await fetch(`${API_BASE_URL}/attendance/mark`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        employee_id: currentFormData.empId,
-                        date: currentFormData.date,
-                        status: status,
-                        comment: comment,
-                        arrival_time: arrival_time,
-                        permission_type: permission_type,
-                        start_date: start_date,
-                        end_date: end_date
-                    })
-                });
+                // Para vacaciones, permisos e incapacidad con rango de fechas
+                if ((status === 'vacation' || status === 'incapacity') && start_date && end_date) {
+                    // Crear un registro para cada día del rango
+                    const startDateObj = new Date(start_date);
+                    const endDateObj = new Date(end_date);
+                    const promises = [];
+
+                    // Iterar por cada día del rango
+                    for (let d = new Date(startDateObj); d <= endDateObj; d.setDate(d.getDate() + 1)) {
+                        const dateStr = d.toISOString().split('T')[0];
+
+                        promises.push(
+                            fetch(`${API_BASE_URL}/attendance/mark`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    employee_id: currentFormData.empId,
+                                    date: dateStr,
+                                    status: status,
+                                    comment: comment,
+                                    arrival_time: null,
+                                    permission_type: permission_type,
+                                    start_date: start_date,
+                                    end_date: end_date
+                                })
+                            })
+                        );
+                    }
+
+                    // Esperar a que todos los registros se guarden
+                    await Promise.all(promises);
+                    showToast(`${status === 'vacation' ? 'Vacaciones' : 'Incapacidad'} registrada del ${start_date} al ${end_date}`, 'success');
+                } else {
+                    // Para otros estados o registros individuales
+                    await fetch(`${API_BASE_URL}/attendance/mark`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            employee_id: currentFormData.empId,
+                            date: currentFormData.date,
+                            status: status,
+                            comment: comment,
+                            arrival_time: arrival_time,
+                            permission_type: permission_type,
+                            start_date: start_date,
+                            end_date: end_date
+                        })
+                    });
+                    showToast('Asistencia guardada correctamente', 'success');
+                }
 
                 closeAttendanceForm();
                 fetchAndRenderAttendance(); // Reload grid
-                showToast('Asistencia guardada correctamente', 'success');
             } catch (e) {
                 console.error('Error saving attendance:', e);
                 showToast('Error al guardar', 'error');
@@ -1181,6 +1254,7 @@
             }
         }
         async function loadJefesOficina() {
+            stopAutoRefresh(); // Detener auto-refresco al cambiar de pestaña
             updateActiveLink('Jefes de Oficina');
             document.getElementById('pageTitle').innerText = 'Jefes de Oficina';
             document.getElementById('statsGrid').style.display = 'none';
@@ -1291,6 +1365,7 @@
         let incidentStaffCache = []; // Cache for employees dropdown in incidents modal
 
         async function loadIncidents() {
+            stopAutoRefresh(); // Detener auto-refresco al cambiar de pestaña
             updateActiveLink('Incidencias');
             document.getElementById('pageTitle').innerText = 'Control de Incidencias';
             document.getElementById('statsGrid').style.display = 'none'; // Hide stats if any
