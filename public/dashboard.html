@@ -607,27 +607,30 @@
             content.innerHTML = `
                 ${archivedMonthsHTML}
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding: 1.25rem; border-radius: 12px; ${monthHeaderStyle} box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
-                    <div style="display: flex; align-items: center; gap: 1rem;">
-                        <h3 style="margin: 0; font-size: 1.5rem; color: #1e293b;">${monthNames[currentMonth]} ${currentYear}</h3>
-                        ${monthBadge}
-                    </div>
-                    
-                    <!-- Branch Filter -->
-                    <div style="flex: 1; display: flex; justify-content: center;">
-                         <select id="attendanceBranchFilter" onchange="filterAttendanceTable()" style="padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; min-width: 200px; color: #475569;">
-                            <option value="">Todas las sucursales</option>
-                        </select>
-                    </div>
+                <!-- Sticky Header Container -->
+                <div id="stickyHeaderContainer" style="position: sticky; top: 0; z-index: 100; background: #f8fafc; padding-bottom: 0.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 1.25rem; border-radius: 12px; ${monthHeaderStyle} box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <h3 style="margin: 0; font-size: 1.5rem; color: #1e293b;">${monthNames[currentMonth]} ${currentYear}</h3>
+                            ${monthBadge}
+                        </div>
+                        
+                        <!-- Branch Filter -->
+                        <div style="flex: 1; display: flex; justify-content: center;">
+                             <select id="attendanceBranchFilter" onchange="filterAttendanceTable()" style="padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; min-width: 200px; color: #475569;">
+                                <option value="">Todas las sucursales</option>
+                            </select>
+                        </div>
 
-                    <button class="btn-primary" onclick="openAddRosterModal()" style="width: auto; padding: 0.6rem 1.2rem;">
-                        + Agregar Colaborador
-                    </button>
+                        <button class="btn-primary" onclick="openAddRosterModal()" style="width: auto; padding: 0.6rem 1.2rem;">
+                            + Agregar Colaborador
+                        </button>
+                    </div>
                 </div>
                 
                 <div style="overflow-x: auto; max-width: 100%;">
                     <table style="border-collapse: collapse; min-width: 100%;">
-                        <thead>
+                        <thead style="position: sticky; top: 100px; z-index: 50; background: white;">
                             <tr style="border-bottom: 1px solid transparent;">${gridHeader}</tr>
                         </thead>
                         <tbody id="attendanceBody">
