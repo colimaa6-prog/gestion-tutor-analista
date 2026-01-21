@@ -607,9 +607,9 @@
             content.innerHTML = `
                 ${archivedMonthsHTML}
                 
-                <!-- Sticky Header Container -->
-                <div style="position: sticky; top: 0; z-index: 100; background: #f8fafc; padding-bottom: 0.5rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 1.25rem; border-radius: 12px; ${monthHeaderStyle} box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <!-- Sticky Controls Bar -->
+                <div style="position: sticky; top: 0; z-index: 100; background: #f8fafc; padding-bottom: 0.5rem; margin-bottom: 0;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.25rem; border-radius: 12px; ${monthHeaderStyle} box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
                         <div style="display: flex; align-items: center; gap: 1rem;">
                             <h3 style="margin: 0; font-size: 1.5rem; color: #1e293b;">${monthNames[currentMonth]} ${currentYear}</h3>
                             ${monthBadge}
@@ -626,20 +626,14 @@
                             + Agregar Colaborador
                         </button>
                     </div>
-                    
-                    <!-- Table Header (sticky dentro del contenedor) -->
-                    <div style="overflow-x: auto; max-width: 100%; background: white;">
-                        <table style="border-collapse: collapse; min-width: 100%;">
-                            <thead>
-                                <tr style="border-bottom: 1px solid transparent;">${gridHeader}</tr>
-                            </thead>
-                        </table>
-                    </div>
                 </div>
                 
-                <!-- Table Body (scrollable) -->
-                <div style="overflow-x: auto; max-width: 100%;">
+                <!-- Attendance Table with Sticky Header -->
+                <div style="overflow-x: auto; max-width: 100%; position: relative;">
                     <table style="border-collapse: collapse; min-width: 100%;">
+                        <thead style="position: sticky; top: 95px; z-index: 90; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                            <tr style="border-bottom: 1px solid transparent;">${gridHeader}</tr>
+                        </thead>
                         <tbody id="attendanceBody">
                             <tr><td colspan="${daysInMonth + 1}" style="padding: 2rem; text-align: center;">Cargando...</td></tr>
                         </tbody>
