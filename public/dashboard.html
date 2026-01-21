@@ -1814,12 +1814,17 @@
                 return;
             }
 
+            // Obtener branch_id del empleado seleccionado
+            const emp = incidentStaffCache.find(e => e.id == empId);
+            const branchId = emp ? emp.branch_id : null;
+
             try {
                 const res = await fetch(`${API_BASE_URL}/incidents/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         reported_by: empId,
+                        branch_id: branchId,
                         type,
                         status,
                         start_date: startDate,
