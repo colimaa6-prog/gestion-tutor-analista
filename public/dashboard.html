@@ -1726,9 +1726,9 @@
                                 <div>
                                     <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Estatus</label>
                                     <select id="editIncEstatus" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
-                                        <option value="EN PROCESO">EN PROCESO (Amarillo)</option>
-                                        <option value="CONCLUIDO">CONCLUIDO (Verde)</option>
-                                        <option value="SIN RESPUESTA">SIN RESPUESTA (Rojo)</option>
+                                        <option value="EN PROCESO">EN PROCESO</option>
+                                        <option value="CONCLUIDO">CONCLUIDO</option>
+                                        <option value="SIN RESPUESTA">SIN RESPUESTA</option>
                                     </select>
                                 </div>
 
@@ -1819,7 +1819,7 @@
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        employee_id: empId,
+                        reported_by: empId,
                         type,
                         status,
                         start_date: startDate,
