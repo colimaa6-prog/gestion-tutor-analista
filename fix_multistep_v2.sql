@@ -1,21 +1,23 @@
--- =============================================================================
--- SCRIPT DE MAPPING DE URL (VERSIÓN CORREGIDA)
--- =============================================================================
--- Ejecuta este script conectado como: GESTION_USER
--- =============================================================================
+Estado HTTP: 555
 
-BEGIN
-    -- Habilitar esquema con el alias 'gestion_app'
-    ORDS.ENABLE_SCHEMA(
-        p_enabled             => TRUE,
-        p_schema              => 'GESTION_USER',
-        p_url_mapping_type    => 'BASE_PATH',
-        p_url_mapping_pattern => 'gestion_app',
-        p_auto_rest_auth      => FALSE
-    );
-    COMMIT;
-END;
-/
+Content-Type: text/html
 
--- Si este script termina con "PL/SQL procedure successfully completed",
--- entonces el alias ya está activo.
+❌ ERROR: El servidor respondió algo que no es JSON (probablemente HTML de error de Oracle).
+
+Contenido recibido (primeros 500 caracteres):
+
+<!DOCTYPE html>
+<html>
+<style type="text/css" media="screen">
+	:root {
+		 /* Site Elements */
+		/* background select input */
+		--color-site-1: #F5F4F2;
+		--color-site-1-c:   #000000; /* foreground */
+		--color-site-1-c-1: hsl(0, 0%, 42%); /* secondary foreground */
+		--color-accent-1-1: #007ea8;
+		--color-site-1-2:   #D9D9D9; /* details - border line */
+		--color-accent-1: #00688C;
+		--color-accent-1-c:   #FFFFFF; /* foreground */
+		    /* Site Elements */
+		--color-site-2:     #FFFFFF; /* back...
