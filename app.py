@@ -909,33 +909,48 @@ def delete_from_roster(employee_id):
         conn.close()
 
 
-def check_consecutive_delays(cursor, employee_id):
-    """Check for 3 consecutive delays and create alerts if found"""
+def check_accumulated_delays(cursor, employee_id, date_obj):
+    """Check for 3 accumulated delays in the current month and create alerts"""
     try:
-        # Check last 3 records
-        cursor.execute("""
-            SELECT date, status, comment 
-            FROM attendance 
-            WHERE employee_id = %s 
-            ORDER BY date DESC 
-            LIMIT 3
-        """, (employee_id,))
-        records = cursor.fetchall()
-        
-        if len(records) < 3:
+        # Get start and end of the month for the given date
+        # date_obj might be a string or datetime.date
+        if isinstance(date_obj, str):
+            try:
+                date_obj = datetime.strptime(date_obj, '%Y-%m-%d').date()
+            except:
+                pass # Try to use it or fail gracefully
+                
+        if not hasattr(date_obj, 'year'):
             return
 
-        # Check if all are delays
-        for record in records:
-            if record['status'] != 'delay':
-                return
-                
-        # If we are here, we have 3 consecutive delays
+        month = date_obj.month
+        year = date_obj.year
+        
+        # Count delays in this month
+        cursor.execute("""
+            SELECT date, comment 
+            FROM attendance 
+            WHERE employee_id = %s 
+            AND status = 'delay'
+            AND EXTRACT(MONTH FROM date) = %s
+            AND EXTRACT(YEAR FROM date) = %s
+            ORDER BY date ASC
+        """, (employee_id, month, year))
+        
+        records = cursor.fetchall()
+        count = len(records)
+        
+        # Trigger on 3rd delay, 6th delay, etc? 
+        # User asked for "3 retardos". Let's trigger if count >= 3.
+        # To avoid spam, we check if alert already exists for this specific month/milestone.
+        
+        if count < 3:
+            return
+
         # Get employee info
         cursor.execute("SELECT full_name FROM employees WHERE id = %s", (employee_id,))
         emp_res = cursor.fetchone()
-        if not emp_res:
-            return
+        if not emp_res: return
         emp_name = emp_res['full_name']
         
         # Get tutor and supervisor
@@ -947,20 +962,24 @@ def check_consecutive_delays(cursor, employee_id):
         """, (employee_id,))
         
         roster_info = cursor.fetchone()
-        if not roster_info:
-            return
+        if not roster_info: return
             
         tutor_id = roster_info['added_by_user_id']
         supervisor_id = roster_info['supervisor_id']
         
-        # Identify the latest delay date to prevent duplicate alerts for the same event
-        latest_date = records[0]['date']
-        latest_date_str = latest_date.isoformat() if hasattr(latest_date, 'isoformat') else str(latest_date)
+        # Prepare details
+        month_names = ["", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]
+        month_name = month_names[month]
         
-        # Prepare details JSON
+        latest_date_str = date_obj.isoformat()
+        
         alert_details = json.dumps({
-            'type': '3_delays',
+            'type': '3_delays', # Keep type for frontend compatibility or change to 'accumulated_delays'
+            'subtype': 'accumulated',
             'employee_name': emp_name,
+            'month': month_name,
+            'year': year,
+            'count': count,
             'latest_date': latest_date_str,
             'delays': [
                 {
@@ -971,23 +990,43 @@ def check_consecutive_delays(cursor, employee_id):
             ]
         })
         
-        # Function to insert alert if it doesn't exist for this specific sequence (keyed by latest date)
+        unique_key = f"acc_delays_{year}_{month}_count_{count}" # Alert per count? Or just once per month?
+        # If we alert on 3, we don't want to alert on 3 again.
+        # If they delete one and add it back, maybe we do? 
+        # Let's alert if we hit 3. If they hit 4, do we alert? 
+        # User said "has 3 delays". Usually implies a threshold. 
+        # Let's target exactly count >= 3 and alert ONCE per month for "3 delays".
+        # If they reach 6, maybe another? Let's stick to >= 3 and trigger if not sent for this month.
+        
+        # Actually proper logic: Trigger whenever they hit a multiple of 3? 
+        # Or just "has 3". Let's assume threshold of 3.
+        
         def create_alert_for_user(uid):
             if not uid: return
             
-            # Check if an alert for this user, employee and latest delay date already exists
-            # We look into the details JSON text for the date string
-            # This is a bit rough but works for preventing immediate spam
-            # A better schema would have 'reference_id' or 'reference_date' column, but we use details
+            # Check if alert for this month already exists
+            # We use a unique string in 'details' to identify it essentially, or check logic.
+            # Let's look for alerts created this month for this employee with type 3_delays
+            # AND containing the specific month/year in details to be safe.
             
-            # For PostgreSQL with JSONB we could query strictly, but for compatibility with text:
+            searchTerm = f'"month": "{month_name}", "year": {year}'
+            
             cursor.execute("""
-                SELECT id FROM alerts 
+                SELECT id, details FROM alerts 
                 WHERE user_id = %s AND employee_id = %s AND details LIKE %s
-            """, (uid, employee_id, f'%{latest_date_str}%'))
+            """, (uid, employee_id, f'%{searchTerm}%'))
             
-            if cursor.fetchone():
-                return # Already exists
+            existing = cursor.fetchall()
+            
+            # If we already have an alert for this month, do we send another?
+            # If the user asks for "3 consecutive", and we switched to "accumulated",
+            # usually you get one warning "This user reached 3 delays in Jan".
+            # You don't need one for 4, 5. 
+            # Unless they hit 6 (another 3). 
+            # Let's keep it simple: One alert per month when they hit 3+.
+            
+            if existing: 
+                return
                 
             cursor.execute("""
                 INSERT INTO alerts (user_id, employee_id, details)
@@ -999,7 +1038,9 @@ def check_consecutive_delays(cursor, employee_id):
             create_alert_for_user(supervisor_id)
             
     except Exception as e:
-        print(f"Error checking consecutive delays: {e}")
+        print(f"Error checking accumulated delays: {e}")
+        import traceback
+        traceback.print_exc()
 
 @app.route('/api/attendance/mark', methods=['POST', 'OPTIONS'])
 
@@ -1042,11 +1083,9 @@ def mark_attendance():
                     end_date = EXCLUDED.end_date
             """, (employee_id, date, status, comment, arrival_time, permission_type, start_date, end_date))
             
-            # Check for 3 consecutive delays if status is delay
+            # Check for accumulated delays if status is delay
             if status == 'delay':
-                # We need to commit current change first so the query sees it? 
-                # Actually in same transaction the query sees it.
-                check_consecutive_delays(cursor, employee_id)
+                check_accumulated_delays(cursor, employee_id, date)
         
         conn.commit()
         return jsonify({'success': True})
