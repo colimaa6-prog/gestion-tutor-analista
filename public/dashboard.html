@@ -174,6 +174,16 @@
                 <h2 class="page-title" id="pageTitle">Vista General</h2>
 
                 <div style="display: flex; align-items: center; gap: 1rem;">
+                    <!-- Alert Icon -->
+                    <div id="alertIconContainer" onclick="showPendingAlerts()"
+                        style="display: none; cursor: pointer; position: relative; margin-right: 5px;"
+                        title="Ver notificaciones">
+                        <img src="alerta.png" alt="Alerta"
+                            style="height: 32px; width: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));">
+                        <span id="alertBadge"
+                            style="position: absolute; top: -2px; right: -2px; background: #ef4444; color: white; border-radius: 50%; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">0</span>
+                    </div>
+
                     <div style="text-align: right;">
                         <div id="userDisplayName" style="font-weight: 500; color: #1e293b;"></div>
                         <div id="userRole" style="font-size: 0.85rem; color: #64748b;"></div>
@@ -227,6 +237,9 @@
 
             // Load dashboard data automatically on page load
             loadDashboard();
+
+            // Start Alert Polling
+            startAlertPolling();
         }
 
         // Logout function
@@ -1597,18 +1610,146 @@
                         incidentStaffCache = result.data;
                         const select = document.getElementById('incColaborador');
                         select.innerHTML = '<option value="">Seleccionar colaborador...</option>';
-                        result.data.forEach(emp => {
+                        incidentStaffCache.forEach(emp => {
                             const opt = document.createElement('option');
                             opt.value = emp.id;
                             opt.textContent = emp.full_name;
                             select.appendChild(opt);
                         });
                     }
-                } catch (e) {
-                    console.error('Error loading employees for incidents', e);
-                }
+                } catch (e) { }
             }
         }
+
+        // --- ALERTS SYSTEM ---
+        let shownAlertIds = new Set();
+        let pendingAlerts = [];
+        let alertPollInterval = null;
+
+        async function startAlertPolling() {
+            checkAlerts();
+            alertPollInterval = setInterval(checkAlerts, 30000); // Check every 30s
+        }
+
+        async function checkAlerts() {
+            try {
+                const userStr = sessionStorage.getItem('user');
+                if (!userStr) return;
+                const user = JSON.parse(userStr);
+
+                const res = await fetch(`${API_BASE_URL}/alerts?userId=${user.id}`);
+                const result = await res.json();
+
+                if (result.success) {
+                    pendingAlerts = result.data;
+                    updateAlertUI();
+
+                    // Show new alerts
+                    pendingAlerts.forEach(alert => {
+                        if (!shownAlertIds.has(alert.id)) {
+                            showAlertToast(alert);
+                            shownAlertIds.add(alert.id);
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Error checking alerts:', e);
+            }
+        }
+
+        function updateAlertUI() {
+            const container = document.getElementById('alertIconContainer');
+            const badge = document.getElementById('alertBadge');
+
+            if (pendingAlerts.length > 0) {
+                container.style.display = 'block';
+                badge.innerText = pendingAlerts.length;
+                container.style.animation = 'alertPulse 2s infinite';
+            } else {
+                container.style.display = 'none';
+                container.style.animation = 'none';
+            }
+        }
+
+        function showAlertToast(alert) {
+            if (alert.details.type === '3_delays') {
+                const delaysHtml = alert.details.delays.map(d =>
+                    `<li style="margin-bottom:4px;">
+                    <strong>${d.date}</strong>: 
+                    <span style="color:#475569; font-style:italic;">"${d.comment}"</span>
+                 </li>`
+                ).join('');
+
+                const content = `
+                <div style="min-width: 280px;">
+                    <div style="font-weight:700; color:#b91c1c; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                        <span>⚠️</span> 3 Retardos Consecutivos
+                    </div>
+                    <div style="font-weight:600; margin-bottom:8px; font-size:1.05em;">${alert.details.employee_name}</div>
+                    <ul style="margin:0 0 12px 18px; padding:0; font-size:0.9em; color:#334155;">
+                        ${delaysHtml}
+                    </ul>
+                    <button onclick="markAlertRead(${alert.id})" style="width:100%; padding:8px; background:#b91c1c; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; transition: background 0.2s;" onmouseover="this.style.background='#991b1b'" onmouseout="this.style.background='#b91c1c'">
+                        Entendido
+                    </button>
+                </div>
+            `;
+
+                // Show toast with warning style (yellowish/orange background usually)
+                // But custom content handles the colors.
+                showCustomToast(content, 'warning', 0);
+            }
+        }
+
+        async function markAlertRead(alertId) {
+            try {
+                await fetch(`${API_BASE_URL}/alerts/mark-read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ alert_id: alertId })
+                });
+
+                // Remove from pending locally
+                pendingAlerts = pendingAlerts.filter(a => a.id !== alertId);
+                updateAlertUI();
+
+                // Close all toasts (simplest way to dismiss the "Entendido" toast)
+                dismissAllToasts();
+
+                // Re-check to be sure
+                checkAlerts();
+
+                showToast('Notificación marcada como leída', 'success');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function showPendingAlerts() {
+            if (pendingAlerts.length === 0) {
+                showToast('No tienes notificaciones pendientes', 'info');
+                return;
+            }
+            // Re-trigger toasts for all pending
+            pendingAlerts.forEach(alert => {
+                showAlertToast(alert);
+            });
+        }
+
+        // Expose needed functions
+        window.markAlertRead = markAlertRead;
+        window.showPendingAlerts = showPendingAlerts;
+
+        // Add animation style
+        const alertStyle = document.createElement('style');
+        alertStyle.textContent = `
+    @keyframes alertPulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+        100% { transform: scale(1); }
+    }
+    `;
+        document.head.appendChild(alertStyle);
 
         function autoFillBranch() {
             const empId = document.getElementById('incColaborador').value;

@@ -908,7 +908,101 @@ def delete_from_roster(employee_id):
     finally:
         conn.close()
 
+
+def check_consecutive_delays(cursor, employee_id):
+    """Check for 3 consecutive delays and create alerts if found"""
+    try:
+        # Check last 3 records
+        cursor.execute("""
+            SELECT date, status, comment 
+            FROM attendance 
+            WHERE employee_id = %s 
+            ORDER BY date DESC 
+            LIMIT 3
+        """, (employee_id,))
+        records = cursor.fetchall()
+        
+        if len(records) < 3:
+            return
+
+        # Check if all are delays
+        for record in records:
+            if record['status'] != 'delay':
+                return
+                
+        # If we are here, we have 3 consecutive delays
+        # Get employee info
+        cursor.execute("SELECT full_name FROM employees WHERE id = %s", (employee_id,))
+        emp_res = cursor.fetchone()
+        if not emp_res:
+            return
+        emp_name = emp_res['full_name']
+        
+        # Get tutor and supervisor
+        cursor.execute("""
+            SELECT ar.added_by_user_id, u.supervisor_id
+            FROM attendance_roster ar
+            JOIN users u ON ar.added_by_user_id = u.id
+            WHERE ar.employee_id = %s
+        """, (employee_id,))
+        
+        roster_info = cursor.fetchone()
+        if not roster_info:
+            return
+            
+        tutor_id = roster_info['added_by_user_id']
+        supervisor_id = roster_info['supervisor_id']
+        
+        # Identify the latest delay date to prevent duplicate alerts for the same event
+        latest_date = records[0]['date']
+        latest_date_str = latest_date.isoformat() if hasattr(latest_date, 'isoformat') else str(latest_date)
+        
+        # Prepare details JSON
+        alert_details = json.dumps({
+            'type': '3_delays',
+            'employee_name': emp_name,
+            'latest_date': latest_date_str,
+            'delays': [
+                {
+                    'date': r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date']), 
+                    'comment': r['comment']
+                } 
+                for r in records
+            ]
+        })
+        
+        # Function to insert alert if it doesn't exist for this specific sequence (keyed by latest date)
+        def create_alert_for_user(uid):
+            if not uid: return
+            
+            # Check if an alert for this user, employee and latest delay date already exists
+            # We look into the details JSON text for the date string
+            # This is a bit rough but works for preventing immediate spam
+            # A better schema would have 'reference_id' or 'reference_date' column, but we use details
+            
+            # For PostgreSQL with JSONB we could query strictly, but for compatibility with text:
+            cursor.execute("""
+                SELECT id FROM alerts 
+                WHERE user_id = %s AND employee_id = %s AND details LIKE %s
+            """, (uid, employee_id, f'%{latest_date_str}%'))
+            
+            if cursor.fetchone():
+                return # Already exists
+                
+            cursor.execute("""
+                INSERT INTO alerts (user_id, employee_id, details)
+                VALUES (%s, %s, %s)
+            """, (uid, employee_id, alert_details))
+
+        create_alert_for_user(tutor_id)
+        if supervisor_id:
+            create_alert_for_user(supervisor_id)
+            
+    except Exception as e:
+        print(f"Error checking consecutive delays: {e}")
+
 @app.route('/api/attendance/mark', methods=['POST', 'OPTIONS'])
+
 def mark_attendance():
     if request.method == 'OPTIONS':
         return '', 204
@@ -947,6 +1041,12 @@ def mark_attendance():
                     start_date = EXCLUDED.start_date,
                     end_date = EXCLUDED.end_date
             """, (employee_id, date, status, comment, arrival_time, permission_type, start_date, end_date))
+            
+            # Check for 3 consecutive delays if status is delay
+            if status == 'delay':
+                # We need to commit current change first so the query sees it? 
+                # Actually in same transaction the query sees it.
+                check_consecutive_delays(cursor, employee_id)
         
         conn.commit()
         return jsonify({'success': True})
@@ -1166,6 +1266,59 @@ def get_report_data():
             return jsonify({'success': True, 'data': data})
         else:
             return jsonify({'success': True, 'data': None})
+    finally:
+        conn.close()
+
+# ==================== API: ALERTS ====================
+
+@app.route('/api/alerts', methods=['GET', 'OPTIONS'])
+def get_alerts():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+        
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT id, details, is_read, created_at 
+            FROM alerts 
+            WHERE user_id = %s AND is_read = FALSE
+            ORDER BY created_at DESC
+        """, (user_id,))
+        
+        alerts = []
+        for row in cursor:
+            alerts.append({
+                'id': row['id'],
+                'details': json.loads(row['details']) if row['details'] else {},
+                'is_read': row['is_read'],
+                'created_at': row['created_at'].isoformat() if hasattr(row['created_at'], 'isoformat') else str(row['created_at'])
+            })
+            
+        return jsonify({'success': True, 'data': alerts})
+    finally:
+        conn.close()
+
+@app.route('/api/alerts/mark-read', methods=['POST', 'OPTIONS'])
+def mark_alert_read():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    data = request.json
+    alert_id = data.get('alert_id')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("UPDATE alerts SET is_read = TRUE WHERE id = %s", (alert_id,))
+        conn.commit()
+        return jsonify({'success': True})
     finally:
         conn.close()
 

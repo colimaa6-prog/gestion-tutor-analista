@@ -181,9 +181,47 @@ const Toast = {
     dismissAll: () => dismissAllToasts()
 };
 
+
+/**
+ * Show a custom toast with HTML content
+ * @param {string} htmlContent - The HTML content to display
+ * @param {string} type - Type of toast
+ * @param {number} duration - Duration in milliseconds
+ */
+function showCustomToast(htmlContent, type = 'info', duration = 0) {
+    initToastContainer();
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    const toastId = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    toast.id = toastId;
+    toast.className = `toast ${type}`;
+    toast.setAttribute('role', 'alert');
+    if (type === 'error') toast.setAttribute('aria-live', 'assertive');
+
+    const icon = TOAST_ICONS[type] || TOAST_ICONS.info;
+
+    toast.innerHTML = `
+        <div class="toast-icon">${icon}</div>
+        <div class="toast-content">
+            <div class="toast-message">${htmlContent}</div>
+        </div>
+        <button class="toast-close" onclick="dismissToast('${toastId}')" aria-label="Cerrar notificación">×</button>
+        ${duration > 0 ? `<div class="toast-progress" style="animation-duration: ${duration}ms;"></div>` : ''}
+    `;
+
+    container.appendChild(toast);
+
+    if (duration > 0) {
+        setTimeout(() => dismissToast(toastId), duration);
+    }
+    return toastId;
+}
+
 // Make functions globally available
 window.showToast = showToast;
 window.showConfirmToast = showConfirmToast;
+window.showCustomToast = showCustomToast;
 window.dismissToast = dismissToast;
 window.dismissAllToasts = dismissAllToasts;
 window.Toast = Toast;
@@ -194,3 +232,4 @@ if (document.readyState === 'loading') {
 } else {
     initToastContainer();
 }
+
