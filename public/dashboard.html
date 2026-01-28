@@ -1666,16 +1666,31 @@
                     pendingAlerts = result.data;
                     updateAlertUI();
 
+                    let newAlertsFound = false;
                     // Show new alerts
                     pendingAlerts.forEach(alert => {
                         if (!shownAlertIds.has(alert.id)) {
                             showAlertToast(alert);
                             shownAlertIds.add(alert.id);
+                            newAlertsFound = true;
                         }
                     });
+
+                    if (newAlertsFound) {
+                        playAlertSound();
+                    }
                 }
             } catch (e) {
                 console.error('Error checking alerts:', e);
+            }
+        }
+
+        function playAlertSound() {
+            try {
+                const audio = new Audio('too_bad.mp3');
+                audio.play().catch(e => console.warn('Audio playback prevented by browser policy:', e));
+            } catch (e) {
+                console.error('Error playing notification sound:', e);
             }
         }
 
