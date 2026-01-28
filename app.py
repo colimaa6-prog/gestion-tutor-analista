@@ -1316,6 +1316,7 @@ def get_alerts():
         return '', 204
         
     user_id = request.args.get('userId')
+    mode = request.args.get('mode', 'unread') # unread, all
     if not user_id:
         return jsonify({'success': False, 'message': 'userId requerido'}), 400
         
@@ -1323,12 +1324,23 @@ def get_alerts():
     cursor = conn.cursor()
     
     try:
-        cursor.execute("""
-            SELECT id, details, is_read, created_at 
-            FROM alerts 
-            WHERE user_id = %s AND is_read = FALSE
-            ORDER BY created_at DESC
-        """, (user_id,))
+        if mode == 'all':
+            # Get last 50 alerts regardless of read status
+            cursor.execute("""
+                SELECT id, details, is_read, created_at 
+                FROM alerts 
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT 50
+            """, (user_id,))
+        else:
+            # Get only unread
+            cursor.execute("""
+                SELECT id, details, is_read, created_at 
+                FROM alerts 
+                WHERE user_id = %s AND is_read = FALSE
+                ORDER BY created_at DESC
+            """, (user_id,))
         
         alerts = []
         for row in cursor:
