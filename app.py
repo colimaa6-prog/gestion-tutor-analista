@@ -195,7 +195,7 @@ def get_dashboard_range_detail(status):
     cursor = conn.cursor()
     try:
         cursor.execute(f"""
-            SELECT e.id, e.full_name, b.name as branch_name, a.start_date, a.end_date, a.comment, a.permission_type
+            SELECT DISTINCT e.id, e.full_name, b.name as branch_name, a.start_date, a.end_date, a.comment, a.permission_type
             FROM attendance a
             JOIN employees e ON a.employee_id = e.id
             LEFT JOIN branches b ON e.branch_id = b.id
