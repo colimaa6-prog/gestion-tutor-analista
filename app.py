@@ -91,37 +91,46 @@ def serve_static(path):
 def login():
     if request.method == 'OPTIONS':
         return '', 204
-        
-    data = request.json
-    username = data.get('username')
-    password = data.get('password')
-    
-    conn = get_db_connection()
-    cursor = conn.cursor()
     
     try:
-        cursor.execute(
-            """SELECT id, username, role, branch_id 
-               FROM users 
-               WHERE username = %s AND password_hash = %s""",
-            (username, password)
-        )
-        user = cursor.fetchone()
+        data = request.get_json(silent=True)
+        if not data:
+             return jsonify({'success': False, 'message': 'Invalid JSON body'}), 400
+
+        username = data.get('username')
+        password = data.get('password')
         
-        if user:
-            return jsonify({
-                'success': True,
-                'user': {
-                    'id': user['id'],
-                    'username': user['username'],
-                    'role': user['role'],
-                    'branch_id': user['branch_id']
-                }
-            })
-        else:
-            return jsonify({'success': False, 'message': 'Credenciales inválidas'}), 401
-    finally:
-        conn.close()
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute(
+                """SELECT id, username, role, branch_id 
+                   FROM users 
+                   WHERE username = %s AND password_hash = %s""",
+                (username, password)
+            )
+            user = cursor.fetchone()
+            
+            if user:
+                return jsonify({
+                    'success': True,
+                    'user': {
+                        'id': user['id'],
+                        'username': user['username'],
+                        'role': user['role'],
+                        'branch_id': user['branch_id']
+                    }
+                })
+            else:
+                return jsonify({'success': False, 'message': 'Credenciales inválidas'}), 401
+        finally:
+            conn.close()
+    except Exception as e:
+        print(f"Login error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 # ==================== API: DASHBOARD ====================
 
