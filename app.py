@@ -2170,41 +2170,37 @@ def generate_incidents_report():
         target_month = int(month) + 1
         target_year = int(year)
         
-        # Query para obtener incidencias
+        # Query para obtener incidencias (las incidencias son por sucursal, no por colaborador)
         if branch_id and branch_id != 'all':
             cursor.execute("""
                 SELECT 
                     i.id,
-                    e.full_name as colaborador,
                     b.name as sucursal,
-                    i.incident_type as tipo,
+                    i.type as tipo,
                     i.description as descripcion,
                     i.status as estatus,
                     TO_CHAR(i.created_at, 'DD/MM/YYYY HH24:MI') as fecha_registro,
                     u.username as reportado_por
                 FROM incidents i
-                JOIN employees e ON i.collaborator_id = e.id
-                LEFT JOIN branches b ON e.branch_id = b.id
+                LEFT JOIN branches b ON i.branch_id = b.id
                 LEFT JOIN users u ON i.reported_by = u.id
                 WHERE EXTRACT(MONTH FROM i.created_at) = %s
                     AND EXTRACT(YEAR FROM i.created_at) = %s
-                    AND e.branch_id = %s
+                    AND i.branch_id = %s
                 ORDER BY i.created_at DESC
             """, (target_month, target_year, branch_id))
         else:
             cursor.execute("""
                 SELECT 
                     i.id,
-                    e.full_name as colaborador,
                     b.name as sucursal,
-                    i.incident_type as tipo,
+                    i.type as tipo,
                     i.description as descripcion,
                     i.status as estatus,
                     TO_CHAR(i.created_at, 'DD/MM/YYYY HH24:MI') as fecha_registro,
                     u.username as reportado_por
                 FROM incidents i
-                JOIN employees e ON i.collaborator_id = e.id
-                LEFT JOIN branches b ON e.branch_id = b.id
+                LEFT JOIN branches b ON i.branch_id = b.id
                 LEFT JOIN users u ON i.reported_by = u.id
                 WHERE EXTRACT(MONTH FROM i.created_at) = %s
                     AND EXTRACT(YEAR FROM i.created_at) = %s
@@ -2228,8 +2224,8 @@ def generate_incidents_report():
             bottom=Side(style='thin')
         )
         
-        # Encabezados
-        headers = ['ID', 'Colaborador', 'Sucursal', 'Tipo', 'Descripción', 'Estatus', 'Fecha Registro', 'Reportado Por']
+        # Encabezados (sin columna de colaborador)
+        headers = ['ID', 'Sucursal', 'Tipo', 'Descripción', 'Estatus', 'Fecha Registro', 'Reportado Por']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.fill = header_fill
@@ -2240,31 +2236,29 @@ def generate_incidents_report():
         # Datos
         for row_idx, incident in enumerate(incidents, 2):
             ws.cell(row=row_idx, column=1, value=incident['id']).border = border
-            ws.cell(row=row_idx, column=2, value=incident['colaborador']).border = border
-            ws.cell(row=row_idx, column=3, value=incident['sucursal'] or 'N/A').border = border
-            ws.cell(row=row_idx, column=4, value=incident['tipo']).border = border
-            ws.cell(row=row_idx, column=5, value=incident['descripcion']).border = border
+            ws.cell(row=row_idx, column=2, value=incident['sucursal'] or 'N/A').border = border
+            ws.cell(row=row_idx, column=3, value=incident['tipo']).border = border
+            ws.cell(row=row_idx, column=4, value=incident['descripcion']).border = border
             
             # Color según estatus
-            status_cell = ws.cell(row=row_idx, column=6, value=incident['estatus'])
+            status_cell = ws.cell(row=row_idx, column=5, value=incident['estatus'])
             status_cell.border = border
             if incident['estatus'] == 'activa':
                 status_cell.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
             elif incident['estatus'] == 'resuelta':
                 status_cell.fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
             
-            ws.cell(row=row_idx, column=7, value=incident['fecha_registro']).border = border
-            ws.cell(row=row_idx, column=8, value=incident['reportado_por'] or 'N/A').border = border
+            ws.cell(row=row_idx, column=6, value=incident['fecha_registro']).border = border
+            ws.cell(row=row_idx, column=7, value=incident['reportado_por'] or 'N/A').border = border
         
         # Ajustar anchos
         ws.column_dimensions['A'].width = 8
         ws.column_dimensions['B'].width = 30
         ws.column_dimensions['C'].width = 20
-        ws.column_dimensions['D'].width = 20
-        ws.column_dimensions['E'].width = 40
-        ws.column_dimensions['F'].width = 15
-        ws.column_dimensions['G'].width = 18
-        ws.column_dimensions['H'].width = 20
+        ws.column_dimensions['D'].width = 40
+        ws.column_dimensions['E'].width = 15
+        ws.column_dimensions['F'].width = 18
+        ws.column_dimensions['G'].width = 20
         
         # Guardar
         output = BytesIO()
