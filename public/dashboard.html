@@ -296,40 +296,40 @@
 
             // Admin Reports Section (only for Helder Mora and Esthfania Ramos)
             const reportsSection = canGenerateReports ? `
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);">
-                    <h3 style="color: white; margin: 0 0 1.5rem 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <img src="reporte.png" alt="Reportes" style="height: 32px; width: auto;"> Reportes Administrativos
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 1.5rem; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);">
+                    <h3 style="color: white; margin: 0 0 1rem 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <img src="reporte.png" alt="Reportes" style="height: 24px; width: auto;"> Reportes Administrativos
                     </h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
                         <button onclick="openTutorReportModal()" 
-                                style="background: white; color: #667eea; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
-                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
-                            👥 Reporte de Tutores
+                                style="background: white; color: #667eea; padding: 0.8rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s; box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px -1px rgba(0, 0, 0, 0.1)';">
+                            👥 Tutores
                         </button>
                         <button onclick="openCollaboratorReportModal()" 
-                                style="background: white; color: #8b5cf6; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
-                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
-                            🧑‍💼 Reporte de Colaboradores
+                                style="background: white; color: #8b5cf6; padding: 0.8rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s; box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px -1px rgba(0, 0, 0, 0.1)';">
+                            🧑‍💼 Colaboradores
                         </button>
                         <button onclick="openAbsencesReportModal()" 
-                                style="background: white; color: #dc2626; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
-                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
-                            ❌ Reporte de Faltas
+                                style="background: white; color: #dc2626; padding: 0.8rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s; box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px -1px rgba(0, 0, 0, 0.1)';">
+                            ❌ Faltas
                         </button>
                         <button onclick="openVacationsReportModal()" 
-                                style="background: white; color: #3b82f6; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
-                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
-                            🏖️ Reporte de Vacaciones
+                                style="background: white; color: #3b82f6; padding: 0.8rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s; box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px -1px rgba(0, 0, 0, 0.1)';">
+                            🏖️ Vacaciones
                         </button>
                         <button onclick="openIncidentsReportModal()" 
-                                style="background: white; color: #f59e0b; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
-                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
-                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
-                            ⚠️ Reporte de Incidencias
+                                style="background: white; color: #f59e0b; padding: 0.8rem 1rem; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.3s; box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px -1px rgba(0, 0, 0, 0.1)';">
+                            ⚠️ Incidencias
                         </button>
                     </div>
                 </div>
