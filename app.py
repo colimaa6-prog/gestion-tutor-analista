@@ -2313,6 +2313,93 @@ def fetch_branches_list():
         print(f"Error fetching branches: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+# ==================== CAMBIOS EN SUCURSALES (ROTACIÓN) ====================
+
+@app.route('/api/branch-changes', methods=['GET', 'OPTIONS'])
+def get_branch_changes():
+    """Obtener cambios pendientes en sucursales"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        user_id = request.args.get('userId')
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': 'userId requerido'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Obtener cambios no procesados
+        cursor.execute("""
+            SELECT 
+                id,
+                branch_id,
+                branch_name,
+                change_type,
+                employee_name,
+                TO_CHAR(hire_date, 'DD/MM/YYYY') as hire_date,
+                description,
+                TO_CHAR(created_at, 'DD/MM/YYYY HH24:MI') as created_at
+            FROM branch_changes
+            WHERE processed = FALSE
+            ORDER BY created_at DESC
+        """)
+        
+        changes = []
+        for row in cursor.fetchall():
+            changes.append({
+                'id': row['id'],
+                'branch_id': row['branch_id'],
+                'branch_name': row['branch_name'],
+                'change_type': row['change_type'],
+                'employee_name': row['employee_name'],
+                'hire_date': row['hire_date'],
+                'description': row['description'],
+                'created_at': row['created_at']
+            })
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'data': changes})
+        
+    except Exception as e:
+        print(f"Error fetching branch changes: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/branch-changes/<int:change_id>', methods=['DELETE', 'OPTIONS'])
+def process_branch_change(change_id):
+    """Marcar un cambio como procesado (eliminarlo de la lista)"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        data = request.get_json()
+        user_id = data.get('userId')
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': 'userId requerido'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Marcar como procesado
+        cursor.execute("""
+            UPDATE branch_changes
+            SET processed = TRUE,
+                processed_at = CURRENT_TIMESTAMP,
+                processed_by = %s
+            WHERE id = %s
+        """, (user_id, change_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Cambio procesado correctamente'})
+        
+    except Exception as e:
+        print(f"Error processing branch change: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # ==================== MAIN ====================
