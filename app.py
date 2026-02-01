@@ -2280,6 +2280,39 @@ def generate_incidents_report():
         traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@app.route('/api/branches', methods=['GET', 'OPTIONS'])
+def get_branches():
+    """Obtener lista de sucursales únicas"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Obtener sucursales únicas de la tabla employees
+        cursor.execute("""
+            SELECT DISTINCT branch_id as id, branch_id as name
+            FROM employees
+            WHERE branch_id IS NOT NULL AND branch_id != ''
+            ORDER BY branch_id
+        """)
+        
+        branches = []
+        for row in cursor.fetchall():
+            branches.append({
+                'id': row['id'],
+                'name': row['name']
+            })
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'data': branches})
+        
+    except Exception as e:
+        print(f"Error fetching branches: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 # ==================== MAIN ====================
 
 if __name__ == '__main__':
