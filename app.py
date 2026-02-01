@@ -2281,7 +2281,7 @@ def generate_incidents_report():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/branches', methods=['GET', 'OPTIONS'])
-def get_branches():
+def fetch_branches_list():
     """Obtener lista de sucursales únicas"""
     if request.method == 'OPTIONS':
         return '', 204
@@ -2312,6 +2312,7 @@ def get_branches():
     except Exception as e:
         print(f"Error fetching branches: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 # ==================== MAIN ====================
 
