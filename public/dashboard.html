@@ -2807,6 +2807,9 @@
                 if (!user) return;
 
                 const response = await fetch(`${API_BASE_URL}/branch-changes?userId=${user.id}`);
+
+                if (!response.ok) return;
+
                 const result = await response.json();
 
                 if (result.success) {
@@ -2815,16 +2818,18 @@
 
                     // Actualizar badge
                     const badge = document.getElementById('rotationBadge');
-                    if (count > 0) {
-                        badge.textContent = count;
-                        badge.style.display = 'flex';
+                    if (badge) {
+                        if (count > 0) {
+                            badge.textContent = count;
+                            badge.style.display = 'flex';
 
-                        // Si hay nuevos cambios, reproducir sonido
-                        if (count > lastBranchChangesCount && lastBranchChangesCount > 0) {
-                            rotationSound.play().catch(e => console.log('No se pudo reproducir el sonido'));
+                            // Si hay nuevos cambios, reproducir sonido
+                            if (count > lastBranchChangesCount && lastBranchChangesCount > 0) {
+                                rotationSound.play().catch(e => console.log('No se pudo reproducir el sonido'));
+                            }
+                        } else {
+                            badge.style.display = 'none';
                         }
-                    } else {
-                        badge.style.display = 'none';
                     }
 
                     lastBranchChangesCount = count;
