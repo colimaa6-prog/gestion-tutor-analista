@@ -1382,6 +1382,478 @@ def mark_alert_read():
     finally:
         conn.close()
 
+# ==================== API: REPORTS ====================
+
+@app.route('/api/reports/tutors', methods=['GET', 'OPTIONS'])
+def generate_tutor_report():
+    """Generar reporte de resumen por tutor (solo para administradores)"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+        from flask import send_file
+        
+        user_id = request.args.get('userId')
+        month = request.args.get('month')  # 0-11
+        year = request.args.get('year')
+        tutor_id = request.args.get('tutorId')  # Optional: specific tutor or 'all'
+        
+        if not user_id or not month or not year:
+            return jsonify({'success': False, 'message': 'Parámetros requeridos: userId, month, year'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar que el usuario es administrador
+        cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+        # Verificar que es Helder Mora o Esthfania Ramos
+        allowed_users = ['Helder Mora', 'Esthfania Ramos']
+        if user['username'] not in allowed_users:
+            return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
+        
+        # Convertir mes de JS (0-11) a SQL (1-12)
+        target_month = int(month) + 1
+        target_year = int(year)
+        
+        # Obtener lista de tutores supervisados
+        if tutor_id and tutor_id != 'all':
+            cursor.execute("""
+                SELECT id, username FROM users 
+                WHERE id = %s AND supervisor_id = %s AND role = 'tutor_analista'
+            """, (tutor_id, user_id))
+        else:
+            cursor.execute("""
+                SELECT id, username FROM users 
+                WHERE supervisor_id = %s AND role = 'tutor_analista'
+                ORDER BY username ASC
+            """, (user_id,))
+        
+        tutors = cursor.fetchall()
+        
+        if not tutors:
+            return jsonify({'success': False, 'message': 'No se encontraron tutores para generar el reporte'}), 404
+        
+        # Crear workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"Reporte Tutores {target_month}-{target_year}"
+        
+        # Estilos
+        header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True, size=12)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Título
+        ws.merge_cells('A1:H1')
+        ws['A1'] = f'REPORTE DE CUMPLIMIENTO POR TUTOR - {target_month}/{target_year}'
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        
+        # Headers
+        headers = ['Tutor', 'Asistencias Registradas', 'Incidencias Registradas', 'Reportes Completados', 
+                   'Total Esperado', 'Total Registrado', 'Cumplimiento %', 'Estado']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Datos por tutor
+        row = 4
+        for tutor in tutors:
+            tutor_id_val = tutor['id']
+            tutor_name = tutor['username']
+            
+            # Contar asistencias registradas por el tutor en el mes
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM attendance a
+                JOIN attendance_roster ar ON a.employee_id = ar.employee_id
+                WHERE ar.added_by_user_id = %s
+                AND EXTRACT(MONTH FROM a.date) = %s
+                AND EXTRACT(YEAR FROM a.date) = %s
+            """, (tutor_id_val, target_month, target_year))
+            asistencias = cursor.fetchone()['count']
+            
+            # Contar incidencias registradas por el tutor en el mes
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM incidents i
+                JOIN attendance_roster ar ON i.reported_by = ar.employee_id
+                WHERE ar.added_by_user_id = %s
+                AND EXTRACT(MONTH FROM i.created_at) = %s
+                AND EXTRACT(YEAR FROM i.created_at) = %s
+            """, (tutor_id_val, target_month, target_year))
+            incidencias = cursor.fetchone()['count']
+            
+            # Contar reportes completados por el tutor en el mes
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM reports r
+                JOIN employees e ON r.employee_id = e.id
+                JOIN attendance_roster ar ON e.id = ar.employee_id
+                WHERE ar.added_by_user_id = %s
+                AND r.month = %s
+                AND r.year = %s
+            """, (tutor_id_val, target_month - 1, target_year))  # month en reports es 0-11
+            reportes = cursor.fetchone()['count']
+            
+            # Calcular total esperado (días del mes * colaboradores asignados)
+            cursor.execute("""
+                SELECT COUNT(DISTINCT ar.employee_id) as count
+                FROM attendance_roster ar
+                WHERE ar.added_by_user_id = %s
+            """, (tutor_id_val,))
+            num_colaboradores = cursor.fetchone()['count']
+            
+            # Días en el mes
+            from calendar import monthrange
+            days_in_month = monthrange(target_year, target_month)[1]
+            total_esperado = days_in_month * num_colaboradores
+            
+            # Total registrado
+            total_registrado = asistencias + incidencias + reportes
+            
+            # Porcentaje de cumplimiento
+            cumplimiento = (total_registrado / total_esperado * 100) if total_esperado > 0 else 0
+            
+            # Estado
+            if cumplimiento >= 90:
+                estado = "Excelente"
+                estado_color = "22C55E"
+            elif cumplimiento >= 70:
+                estado = "Bueno"
+                estado_color = "3B82F6"
+            elif cumplimiento >= 50:
+                estado = "Regular"
+                estado_color = "F59E0B"
+            else:
+                estado = "Bajo"
+                estado_color = "EF4444"
+            
+            # Escribir fila
+            ws.cell(row=row, column=1, value=tutor_name).border = border
+            ws.cell(row=row, column=2, value=asistencias).border = border
+            ws.cell(row=row, column=3, value=incidencias).border = border
+            ws.cell(row=row, column=4, value=reportes).border = border
+            ws.cell(row=row, column=5, value=total_esperado).border = border
+            ws.cell(row=row, column=6, value=total_registrado).border = border
+            ws.cell(row=row, column=7, value=f"{cumplimiento:.2f}%").border = border
+            
+            estado_cell = ws.cell(row=row, column=8, value=estado)
+            estado_cell.border = border
+            estado_cell.fill = PatternFill(start_color=estado_color, end_color=estado_color, fill_type="solid")
+            estado_cell.font = Font(color="FFFFFF", bold=True)
+            estado_cell.alignment = Alignment(horizontal='center')
+            
+            row += 1
+        
+        # Ajustar anchos de columna
+        ws.column_dimensions['A'].width = 25
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 22
+        ws.column_dimensions['D'].width = 22
+        ws.column_dimensions['E'].width = 18
+        ws.column_dimensions['F'].width = 18
+        ws.column_dimensions['G'].width = 18
+        ws.column_dimensions['H'].width = 15
+        
+        # Guardar en BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        conn.close()
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'reporte_tutores_{target_month}_{target_year}.xlsx'
+        )
+        
+    except Exception as e:
+        print(f"Error generating tutor report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/reports/collaborators', methods=['GET', 'OPTIONS'])
+def generate_collaborator_report():
+    """Generar reporte de resumen por colaborador (solo para administradores)"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+        from flask import send_file
+        
+        user_id = request.args.get('userId')
+        month = request.args.get('month')  # 0-11
+        year = request.args.get('year')
+        collaborator_id = request.args.get('collaboratorId')  # Optional: specific collaborator or 'all'
+        
+        if not user_id or not month or not year:
+            return jsonify({'success': False, 'message': 'Parámetros requeridos: userId, month, year'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar que el usuario es administrador
+        cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+        # Verificar que es Helder Mora o Esthfania Ramos
+        allowed_users = ['Helder Mora', 'Esthfania Ramos']
+        if user['username'] not in allowed_users:
+            return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
+        
+        # Convertir mes de JS (0-11) a SQL (1-12)
+        target_month = int(month) + 1
+        target_year = int(year)
+        
+        # Obtener IDs de tutores supervisados
+        cursor.execute("""
+            SELECT id FROM users 
+            WHERE supervisor_id = %s AND role = 'tutor_analista'
+        """, (user_id,))
+        tutor_ids = [row['id'] for row in cursor.fetchall()]
+        
+        if not tutor_ids:
+            return jsonify({'success': False, 'message': 'No se encontraron tutores supervisados'}), 404
+        
+        placeholders = ','.join(['%s' for _ in tutor_ids])
+        
+        # Obtener lista de colaboradores
+        if collaborator_id and collaborator_id != 'all':
+            cursor.execute(f"""
+                SELECT DISTINCT e.id, e.full_name, b.name as branch_name
+                FROM employees e
+                LEFT JOIN branches b ON e.branch_id = b.id
+                JOIN attendance_roster ar ON e.id = ar.employee_id
+                WHERE e.id = %s AND ar.added_by_user_id IN ({placeholders})
+                ORDER BY e.full_name ASC
+            """, [collaborator_id] + tutor_ids)
+        else:
+            cursor.execute(f"""
+                SELECT DISTINCT e.id, e.full_name, b.name as branch_name
+                FROM employees e
+                LEFT JOIN branches b ON e.branch_id = b.id
+                JOIN attendance_roster ar ON e.id = ar.employee_id
+                WHERE ar.added_by_user_id IN ({placeholders})
+                ORDER BY e.full_name ASC
+            """, tutor_ids)
+        
+        collaborators = cursor.fetchall()
+        
+        if not collaborators:
+            return jsonify({'success': False, 'message': 'No se encontraron colaboradores para generar el reporte'}), 404
+        
+        # Crear workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = f"Reporte Colaboradores {target_month}-{target_year}"
+        
+        # Estilos
+        header_fill = PatternFill(start_color="8B5CF6", end_color="8B5CF6", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True, size=11)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Título
+        ws.merge_cells('A1:K1')
+        ws['A1'] = f'REPORTE DE CUMPLIMIENTO POR COLABORADOR - {target_month}/{target_year}'
+        ws['A1'].font = Font(bold=True, size=14)
+        ws['A1'].alignment = Alignment(horizontal='center')
+        
+        # Headers
+        headers = ['Colaborador', 'Sucursal', 'Asistencias', 'Faltas', 'Vacaciones', 'Permisos', 
+                   'Incapacidades', 'Incidencias', 'Reportes', 'Cumplimiento %', 'Estado']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col)
+            cell.value = header
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Datos por colaborador
+        row = 4
+        for collab in collaborators:
+            collab_id = collab['id']
+            collab_name = collab['full_name']
+            branch_name = collab['branch_name'] or 'Sin sucursal'
+            
+            # Contar asistencias por tipo
+            cursor.execute("""
+                SELECT status, COUNT(*) as count FROM attendance
+                WHERE employee_id = %s
+                AND EXTRACT(MONTH FROM date) = %s
+                AND EXTRACT(YEAR FROM date) = %s
+                GROUP BY status
+            """, (collab_id, target_month, target_year))
+            
+            attendance_counts = {row['status']: row['count'] for row in cursor.fetchall()}
+            asistencias = attendance_counts.get('present', 0) + attendance_counts.get('delay', 0)
+            faltas = attendance_counts.get('absent', 0)
+            vacaciones = attendance_counts.get('vacation', 0)
+            permisos = attendance_counts.get('permission', 0)
+            incapacidades = attendance_counts.get('incapacity', 0)
+            
+            # Contar incidencias
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM incidents
+                WHERE reported_by = %s
+                AND EXTRACT(MONTH FROM created_at) = %s
+                AND EXTRACT(YEAR FROM created_at) = %s
+            """, (collab_id, target_month, target_year))
+            incidencias = cursor.fetchone()['count']
+            
+            # Contar reportes
+            cursor.execute("""
+                SELECT COUNT(*) as count FROM reports
+                WHERE employee_id = %s
+                AND month = %s
+                AND year = %s
+            """, (collab_id, target_month - 1, target_year))  # month en reports es 0-11
+            reportes = cursor.fetchone()['count']
+            
+            # Calcular cumplimiento (días del mes)
+            from calendar import monthrange
+            days_in_month = monthrange(target_year, target_month)[1]
+            total_registrado = asistencias + faltas + vacaciones + permisos + incapacidades
+            cumplimiento = (total_registrado / days_in_month * 100) if days_in_month > 0 else 0
+            
+            # Estado
+            if cumplimiento >= 90:
+                estado = "Excelente"
+                estado_color = "22C55E"
+            elif cumplimiento >= 70:
+                estado = "Bueno"
+                estado_color = "3B82F6"
+            elif cumplimiento >= 50:
+                estado = "Regular"
+                estado_color = "F59E0B"
+            else:
+                estado = "Bajo"
+                estado_color = "EF4444"
+            
+            # Escribir fila
+            ws.cell(row=row, column=1, value=collab_name).border = border
+            ws.cell(row=row, column=2, value=branch_name).border = border
+            ws.cell(row=row, column=3, value=asistencias).border = border
+            ws.cell(row=row, column=4, value=faltas).border = border
+            ws.cell(row=row, column=5, value=vacaciones).border = border
+            ws.cell(row=row, column=6, value=permisos).border = border
+            ws.cell(row=row, column=7, value=incapacidades).border = border
+            ws.cell(row=row, column=8, value=incidencias).border = border
+            ws.cell(row=row, column=9, value=reportes).border = border
+            ws.cell(row=row, column=10, value=f"{cumplimiento:.2f}%").border = border
+            
+            estado_cell = ws.cell(row=row, column=11, value=estado)
+            estado_cell.border = border
+            estado_cell.fill = PatternFill(start_color=estado_color, end_color=estado_color, fill_type="solid")
+            estado_cell.font = Font(color="FFFFFF", bold=True)
+            estado_cell.alignment = Alignment(horizontal='center')
+            
+            row += 1
+        
+        # Ajustar anchos de columna
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 20
+        for col in ['C', 'D', 'E', 'F', 'G', 'H', 'I']:
+            ws.column_dimensions[col].width = 14
+        ws.column_dimensions['J'].width = 16
+        ws.column_dimensions['K'].width = 14
+        
+        # Guardar en BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        conn.close()
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'reporte_colaboradores_{target_month}_{target_year}.xlsx'
+        )
+        
+    except Exception as e:
+        print(f"Error generating collaborator report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/reports/available-months', methods=['GET', 'OPTIONS'])
+def get_available_report_months():
+    """Obtener meses disponibles para reportes"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        user_id = request.args.get('userId')
+        
+        if not user_id:
+            return jsonify({'success': False, 'message': 'userId requerido'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar que el usuario es administrador
+        cursor.execute("SELECT role FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+        # Obtener meses con datos de asistencia
+        cursor.execute("""
+            SELECT DISTINCT 
+                EXTRACT(MONTH FROM date) as month,
+                EXTRACT(YEAR FROM date) as year
+            FROM attendance
+            ORDER BY year DESC, month DESC
+            LIMIT 12
+        """)
+        
+        months = []
+        for row in cursor.fetchall():
+            months.append({
+                'month': int(row['month']) - 1,  # Convertir a formato JS (0-11)
+                'year': int(row['year'])
+            })
+        
+        conn.close()
+        
+        return jsonify({'success': True, 'data': months})
+        
+    except Exception as e:
+        print(f"Error getting available months: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 # ==================== CORS Headers ====================
 
 @app.after_request

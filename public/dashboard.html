@@ -270,8 +270,40 @@
             // Load statistics
             await loadDashboardStats();
 
+            // Check if user is admin
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            const isAdmin = user && user.role === 'admin';
+            const allowedAdmins = ['Helder Mora', 'Esthfania Ramos'];
+            const canGenerateReports = isAdmin && allowedAdmins.includes(user.username);
+
+            // Admin Reports Section (only for Helder Mora and Esthfania Ramos)
+            const reportsSection = canGenerateReports ? `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 2rem; border-radius: 16px; margin-bottom: 2rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);">
+                    <h3 style="color: white; margin: 0 0 1.5rem 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        📊 Reportes Administrativos
+                    </h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                        <button onclick="openTutorReportModal()" 
+                                style="background: white; color: #667eea; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
+                            👥 Reporte de Tutores
+                        </button>
+                        <button onclick="openCollaboratorReportModal()" 
+                                style="background: white; color: #8b5cf6; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
+                            🧑‍💼 Reporte de Colaboradores
+                        </button>
+                    </div>
+                </div>
+            ` : '';
+
             // Load information boards
             document.getElementById('contentArea').innerHTML = `
+                ${reportsSection}
+                
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
                     <!-- Absences Board -->
                     <div class="info-board">
@@ -2243,6 +2275,200 @@
                 }
             } catch (e) {
                 showToast('Error al actualizar', 'error');
+            }
+        }
+
+        // ==================== ADMIN REPORTS FUNCTIONS ====================
+
+        async function openTutorReportModal() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            // Fetch supervised tutors
+            const res = await fetch(`${API_BASE_URL}/supervised-tutors?userId=${user.id}`);
+            const result = await res.json();
+
+            const tutors = result.success ? result.tutors : [];
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'tutorReportModal';
+            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 10000;';
+
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 16px; width: 500px; max-width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0; color: #1e293b;">📊 Reporte de Tutores</h3>
+                        <button onclick="closeTutorReportModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <select id="tutorReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <select id="tutorReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Tutor</label>
+                        <select id="tutorReportTutor" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            <option value="all">Todos los tutores</option>
+                            ${tutors.map(t => `<option value="${t.id}">${t.username}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button onclick="closeTutorReportModal()" style="padding: 0.8rem 1.5rem; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; font-family: inherit;">Cancelar</button>
+                        <button onclick="generateTutorReport()" class="btn-primary" style="width: auto; padding: 0.8rem 1.5rem;">Generar Reporte</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function closeTutorReportModal() {
+            const modal = document.getElementById('tutorReportModal');
+            if (modal) modal.remove();
+        }
+
+        async function generateTutorReport() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            const month = document.getElementById('tutorReportMonth').value;
+            const year = document.getElementById('tutorReportYear').value;
+            const tutorId = document.getElementById('tutorReportTutor').value;
+
+            showToast('Generando reporte...', 'info');
+
+            try {
+                const url = `${API_BASE_URL}/reports/tutors?userId=${user.id}&month=${month}&year=${year}&tutorId=${tutorId}`;
+
+                // Download file
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `reporte_tutores_${parseInt(month) + 1}_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast('Reporte generado correctamente', 'success');
+                closeTutorReportModal();
+            } catch (e) {
+                console.error(e);
+                showToast('Error al generar reporte', 'error');
+            }
+        }
+
+        async function openCollaboratorReportModal() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            // Fetch all collaborators from supervised tutors
+            const res = await fetch(`${API_BASE_URL}/attendance?userId=${user.id}`);
+            const result = await res.json();
+
+            const collaborators = result.success ? result.data : [];
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'collaboratorReportModal';
+            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 10000;';
+
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 16px; width: 500px; max-width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0; color: #1e293b;">📊 Reporte de Colaboradores</h3>
+                        <button onclick="closeCollaboratorReportModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <select id="collaboratorReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <select id="collaboratorReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
+                        <select id="collaboratorReportCollaborator" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            <option value="all">Todos los colaboradores</option>
+                            ${collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button onclick="closeCollaboratorReportModal()" style="padding: 0.8rem 1.5rem; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; font-family: inherit;">Cancelar</button>
+                        <button onclick="generateCollaboratorReport()" class="btn-primary" style="width: auto; padding: 0.8rem 1.5rem;">Generar Reporte</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function closeCollaboratorReportModal() {
+            const modal = document.getElementById('collaboratorReportModal');
+            if (modal) modal.remove();
+        }
+
+        async function generateCollaboratorReport() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            const month = document.getElementById('collaboratorReportMonth').value;
+            const year = document.getElementById('collaboratorReportYear').value;
+            const collaboratorId = document.getElementById('collaboratorReportCollaborator').value;
+
+            showToast('Generando reporte...', 'info');
+
+            try {
+                const url = `${API_BASE_URL}/reports/collaborators?userId=${user.id}&month=${month}&year=${year}&collaboratorId=${collaboratorId}`;
+
+                // Download file
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `reporte_colaboradores_${parseInt(month) + 1}_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast('Reporte generado correctamente', 'success');
+                closeCollaboratorReportModal();
+            } catch (e) {
+                console.error(e);
+                showToast('Error al generar reporte', 'error');
             }
         }
     </script>
