@@ -182,7 +182,13 @@ async function fetchAndRenderReports() {
                 if (d <= daysInMonth) {
                     const status = reportData.faltantes && reportData.faltantes[d] ? reportData.faltantes[d].status : null;
                     const comment = reportData.faltantes && reportData.faltantes[d] ? reportData.faltantes[d].comment : '';
-                    html += createCell('faltantes', emp.id, d, status, comment, d, 'min-width: 30px;');
+
+                    // Check if weekend
+                    const date = new Date(currentYear, currentMonth, d);
+                    const dayOfWeek = date.getDay();
+                    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6); // 0=Sun, 6=Sat
+
+                    html += createCell('faltantes', emp.id, d, status, comment, d, 'min-width: 30px;', false, isWeekend);
                 } else {
                     html += `<td style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;"></td>`;
                 }
@@ -253,32 +259,30 @@ async function fetchAndRenderReports() {
     }
 }
 
-function createCell(type, empId, key, status, comment, label, attrs = '', showLabel = false) {
+function createCell(type, empId, key, status, comment, label, attrs = '', showLabel = false, isWeekend = false) {
     let content = '';
-    let bgClass = '';
 
+    // Determine background color
+    let bgColor = 'white';
     if (status === 'check') {
         content = '✅';
-        bgClass = 'bg-green-50';
+        bgColor = '#f0fdf4'; // Green-50
     } else if (status === 'cross') {
         content = '❌';
-        bgClass = 'bg-red-50';
-    } else {
-        content = ''; // Empty
+        bgColor = '#fef2f2'; // Red-50
+    } else if (isWeekend) {
+        bgColor = '#cbd5e1'; // Slate-300 (Gray for weekends)
     }
 
     const tooltip = comment ? `title="${comment.replace(/"/g, '&quot;')}"` : '';
     const hasComment = !!comment;
-    const labelHtml = showLabel ? `<div style="font-size: 0.7rem; color: #64748b; margin-bottom: 4px;">${label}</div>` : `<div style="font-size: 0.7rem; color: #64748b; margin-bottom: 2px;">${label}</div>`; // Label for days too? Maybe just number
-
-    // If it's a "faltantes" daily cell, label is just the number, maybe cleaner strictly inside query?
-    // For daily, label is passed as just number "1", "2".
+    const labelHtml = showLabel ? `<div style="font-size: 0.7rem; color: #64748b; margin-bottom: 4px;">${label}</div>` : `<div style="font-size: 0.7rem; color: #64748b; margin-bottom: 2px;">${label}</div>`;
 
     return `
         <td ${attrs} 
             onclick="openReportSelection('${type}', ${empId}, ${key}, '${status || 'empty'}', '${comment ? comment.replace(/'/g, "\\'") : ''}')"
             ${tooltip}
-            style="text-align: center; border: 1px solid #e2e8f0; border-bottom: ${type === 'tableros' ? '2px solid #94a3b8' : '1px solid #cbd5e1'}; cursor: pointer; position: relative; height: ${showLabel ? '60px' : '40px'}; min-width: ${showLabel ? '120px' : '40px'}; vertical-align: middle; background: ${status === 'check' ? '#f0fdf4' : status === 'cross' ? '#fef2f2' : 'white'}; user-select: none;">
+            style="text-align: center; border: 1px solid #e2e8f0; border-bottom: ${type === 'tableros' ? '2px solid #94a3b8' : '1px solid #cbd5e1'}; cursor: pointer; position: relative; height: ${showLabel ? '60px' : '40px'}; min-width: ${showLabel ? '120px' : '40px'}; vertical-align: middle; background: ${bgColor}; user-select: none;">
             
             ${showLabel ? labelHtml : `<span style="position: absolute; top: 2px; left: 2px; font-size: 0.6rem; color: #94a3b8;">${label}</span>`}
             
@@ -382,7 +386,7 @@ function filterReportsTable() {
     rows.forEach(row => {
         const branch = row.getAttribute('data-branch');
         if (branch !== null) {
-             if (!filter || branch === filter) {
+            if (!filter || branch === filter) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
