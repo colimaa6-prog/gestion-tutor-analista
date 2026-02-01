@@ -250,8 +250,12 @@
             // Start Alert Polling
             startAlertPolling();
 
-            // Start Branch Changes Polling
-            startBranchChangesPolling();
+            // Start Branch Changes Polling with delay to not block rendering
+            setTimeout(() => {
+                if (typeof startBranchChangesPolling === 'function') {
+                    startBranchChangesPolling();
+                }
+            }, 3000);
         }
 
         // Logout function
