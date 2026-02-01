@@ -274,8 +274,8 @@
             const userStr = sessionStorage.getItem('user');
             const user = userStr ? JSON.parse(userStr) : null;
             const isAdmin = user && user.role === 'admin';
-            const allowedAdmins = ['Helder Mora', 'Esthfania Ramos'];
-            const canGenerateReports = isAdmin && allowedAdmins.includes(user.username);
+            const allowedAdmins = ['helder mora', 'esthfania ramos'];
+            const canGenerateReports = isAdmin && allowedAdmins.includes(user.username?.toLowerCase());
 
             // Admin Reports Section (only for Helder Mora and Esthfania Ramos)
             const reportsSection = canGenerateReports ? `

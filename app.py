@@ -1414,9 +1414,9 @@ def generate_tutor_report():
         if not user or user['role'] != 'admin':
             return jsonify({'success': False, 'message': 'No autorizado'}), 403
         
-        # Verificar que es Helder Mora o Esthfania Ramos
-        allowed_users = ['Helder Mora', 'Esthfania Ramos']
-        if user['username'] not in allowed_users:
+        # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
+        allowed_users = ['helder mora', 'esthfania ramos']
+        if user['username'].lower() not in allowed_users:
             return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
         
         # Convertir mes de JS (0-11) a SQL (1-12)
@@ -1620,9 +1620,9 @@ def generate_collaborator_report():
         if not user or user['role'] != 'admin':
             return jsonify({'success': False, 'message': 'No autorizado'}), 403
         
-        # Verificar que es Helder Mora o Esthfania Ramos
-        allowed_users = ['Helder Mora', 'Esthfania Ramos']
-        if user['username'] not in allowed_users:
+        # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
+        allowed_users = ['helder mora', 'esthfania ramos']
+        if user['username'].lower() not in allowed_users:
             return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
         
         # Convertir mes de JS (0-11) a SQL (1-12)
