@@ -2183,7 +2183,7 @@ def generate_incidents_report():
                     TO_CHAR(i.created_at, 'DD/MM/YYYY HH24:MI') as fecha_registro,
                     u.username as reportado_por
                 FROM incidents i
-                JOIN employees e ON i.employee_id = e.id
+                JOIN employees e ON i.collaborator_id = e.id
                 LEFT JOIN branches b ON e.branch_id = b.id
                 LEFT JOIN users u ON i.reported_by = u.id
                 WHERE EXTRACT(MONTH FROM i.created_at) = %s
@@ -2203,7 +2203,7 @@ def generate_incidents_report():
                     TO_CHAR(i.created_at, 'DD/MM/YYYY HH24:MI') as fecha_registro,
                     u.username as reportado_por
                 FROM incidents i
-                JOIN employees e ON i.employee_id = e.id
+                JOIN employees e ON i.collaborator_id = e.id
                 LEFT JOIN branches b ON e.branch_id = b.id
                 LEFT JOIN users u ON i.reported_by = u.id
                 WHERE EXTRACT(MONTH FROM i.created_at) = %s
