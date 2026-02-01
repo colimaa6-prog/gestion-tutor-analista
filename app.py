@@ -1909,31 +1909,33 @@ def generate_absences_report():
             cursor.execute("""
                 SELECT 
                     e.full_name,
-                    e.branch_id,
+                    b.name as branch_name,
                     COUNT(*) as total_faltas,
                     STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
                 FROM attendance a
                 JOIN employees e ON a.employee_id = e.id
+                LEFT JOIN branches b ON e.branch_id = b.id
                 WHERE a.status = 'absent'
                     AND EXTRACT(MONTH FROM a.date) = %s
                     AND EXTRACT(YEAR FROM a.date) = %s
                     AND e.id = %s
-                GROUP BY e.id, e.full_name, e.branch_id
+                GROUP BY e.id, e.full_name, b.name
                 ORDER BY e.full_name
             """, (target_month, target_year, collaborator_id))
         else:
             cursor.execute("""
                 SELECT 
                     e.full_name,
-                    e.branch_id,
+                    b.name as branch_name,
                     COUNT(*) as total_faltas,
                     STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
                 FROM attendance a
                 JOIN employees e ON a.employee_id = e.id
+                LEFT JOIN branches b ON e.branch_id = b.id
                 WHERE a.status = 'absent'
                     AND EXTRACT(MONTH FROM a.date) = %s
                     AND EXTRACT(YEAR FROM a.date) = %s
-                GROUP BY e.id, e.full_name, e.branch_id
+                GROUP BY e.id, e.full_name, b.name
                 ORDER BY e.full_name
             """, (target_month, target_year))
         
@@ -1966,7 +1968,7 @@ def generate_absences_report():
         # Datos
         for row_idx, absence in enumerate(absences, 2):
             ws.cell(row=row_idx, column=1, value=absence['full_name']).border = border
-            ws.cell(row=row_idx, column=2, value=absence['branch_id'] or 'N/A').border = border
+            ws.cell(row=row_idx, column=2, value=absence['branch_name'] or 'N/A').border = border
             ws.cell(row=row_idx, column=3, value=absence['total_faltas']).border = border
             ws.cell(row=row_idx, column=4, value=absence['fechas']).border = border
         
@@ -2040,31 +2042,33 @@ def generate_vacations_report():
             cursor.execute("""
                 SELECT 
                     e.full_name,
-                    e.branch_id,
+                    b.name as branch_name,
                     COUNT(*) as total_dias_vacaciones,
                     STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
                 FROM attendance a
                 JOIN employees e ON a.employee_id = e.id
+                LEFT JOIN branches b ON e.branch_id = b.id
                 WHERE a.status = 'vacation'
                     AND EXTRACT(MONTH FROM a.date) = %s
                     AND EXTRACT(YEAR FROM a.date) = %s
                     AND e.id = %s
-                GROUP BY e.id, e.full_name, e.branch_id
+                GROUP BY e.id, e.full_name, b.name
                 ORDER BY e.full_name
             """, (target_month, target_year, collaborator_id))
         else:
             cursor.execute("""
                 SELECT 
                     e.full_name,
-                    e.branch_id,
+                    b.name as branch_name,
                     COUNT(*) as total_dias_vacaciones,
                     STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
                 FROM attendance a
                 JOIN employees e ON a.employee_id = e.id
+                LEFT JOIN branches b ON e.branch_id = b.id
                 WHERE a.status = 'vacation'
                     AND EXTRACT(MONTH FROM a.date) = %s
                     AND EXTRACT(YEAR FROM a.date) = %s
-                GROUP BY e.id, e.full_name, e.branch_id
+                GROUP BY e.id, e.full_name, b.name
                 ORDER BY e.full_name
             """, (target_month, target_year))
         
@@ -2097,7 +2101,7 @@ def generate_vacations_report():
         # Datos
         for row_idx, vacation in enumerate(vacations, 2):
             ws.cell(row=row_idx, column=1, value=vacation['full_name']).border = border
-            ws.cell(row=row_idx, column=2, value=vacation['branch_id'] or 'N/A').border = border
+            ws.cell(row=row_idx, column=2, value=vacation['branch_name'] or 'N/A').border = border
             ws.cell(row=row_idx, column=3, value=vacation['total_dias_vacaciones']).border = border
             ws.cell(row=row_idx, column=4, value=vacation['fechas']).border = border
         
@@ -2172,7 +2176,7 @@ def generate_incidents_report():
                 SELECT 
                     i.id,
                     e.full_name as colaborador,
-                    e.branch_id as sucursal,
+                    b.name as sucursal,
                     i.incident_type as tipo,
                     i.description as descripcion,
                     i.status as estatus,
@@ -2180,6 +2184,7 @@ def generate_incidents_report():
                     u.username as reportado_por
                 FROM incidents i
                 JOIN employees e ON i.employee_id = e.id
+                LEFT JOIN branches b ON e.branch_id = b.id
                 LEFT JOIN users u ON i.reported_by = u.id
                 WHERE EXTRACT(MONTH FROM i.created_at) = %s
                     AND EXTRACT(YEAR FROM i.created_at) = %s
@@ -2191,7 +2196,7 @@ def generate_incidents_report():
                 SELECT 
                     i.id,
                     e.full_name as colaborador,
-                    e.branch_id as sucursal,
+                    b.name as sucursal,
                     i.incident_type as tipo,
                     i.description as descripcion,
                     i.status as estatus,
@@ -2199,6 +2204,7 @@ def generate_incidents_report():
                     u.username as reportado_por
                 FROM incidents i
                 JOIN employees e ON i.employee_id = e.id
+                LEFT JOIN branches b ON e.branch_id = b.id
                 LEFT JOIN users u ON i.reported_by = u.id
                 WHERE EXTRACT(MONTH FROM i.created_at) = %s
                     AND EXTRACT(YEAR FROM i.created_at) = %s
@@ -2282,7 +2288,7 @@ def generate_incidents_report():
 
 @app.route('/api/branches', methods=['GET', 'OPTIONS'])
 def fetch_branches_list():
-    """Obtener lista de sucursales únicas"""
+    """Obtener lista de sucursales"""
     if request.method == 'OPTIONS':
         return '', 204
     
@@ -2290,19 +2296,19 @@ def fetch_branches_list():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Obtener sucursales únicas de la tabla employees
+        # Obtener sucursales de la tabla branches
         cursor.execute("""
-            SELECT DISTINCT branch_id as id, branch_id as name
-            FROM employees
-            WHERE branch_id IS NOT NULL AND branch_id != ''
-            ORDER BY branch_id
+            SELECT id, name, location, created_at
+            FROM branches
+            ORDER BY name
         """)
         
         branches = []
         for row in cursor.fetchall():
             branches.append({
                 'id': row['id'],
-                'name': row['name']
+                'name': row['name'],
+                'location': row['location'] if 'location' in row.keys() else None
             })
         
         conn.close()
@@ -2312,6 +2318,7 @@ def fetch_branches_list():
     except Exception as e:
         print(f"Error fetching branches: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 
 # ==================== MAIN ====================
