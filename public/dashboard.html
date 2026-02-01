@@ -283,7 +283,7 @@
                     <h3 style="color: white; margin: 0 0 1.5rem 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.5rem;">
                         <img src="reporte.png" alt="Reportes" style="height: 32px; width: auto;"> Reportes Administrativos
                     </h3>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem;">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
                         <button onclick="openTutorReportModal()" 
                                 style="background: white; color: #667eea; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
@@ -295,6 +295,24 @@
                                 onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
                                 onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
                             🧑‍💼 Reporte de Colaboradores
+                        </button>
+                        <button onclick="openAbsencesReportModal()" 
+                                style="background: white; color: #dc2626; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
+                            ❌ Reporte de Faltas
+                        </button>
+                        <button onclick="openVacationsReportModal()" 
+                                style="background: white; color: #3b82f6; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
+                            🏖️ Reporte de Vacaciones
+                        </button>
+                        <button onclick="openIncidentsReportModal()" 
+                                style="background: white; color: #f59e0b; padding: 1.25rem; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 1rem; transition: all 0.3s; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                                onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 15px -3px rgba(0, 0, 0, 0.2)';"
+                                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)';">
+                            ⚠️ Reporte de Incidencias
                         </button>
                     </div>
                 </div>
@@ -2466,6 +2484,287 @@
 
                 showToast('Reporte generado correctamente', 'success');
                 closeCollaboratorReportModal();
+            } catch (e) {
+                console.error(e);
+                showToast('Error al generar reporte', 'error');
+            }
+        }
+
+        // ==================== REPORTES ESPECÍFICOS ====================
+
+        async function openAbsencesReportModal() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            // Fetch collaborators
+            const res = await fetch(`${API_BASE_URL}/attendance?userId=${user.id}`);
+            const result = await res.json();
+            const collaborators = result.success ? result.data : [];
+
+            const modal = document.createElement('div');
+            modal.id = 'absencesReportModal';
+            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 10000;';
+
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 16px; width: 500px; max-width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0; color: #1e293b;">❌ Reporte de Faltas</h3>
+                        <button onclick="closeAbsencesReportModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <select id="absencesReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <select id="absencesReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
+                        <select id="absencesReportCollaborator" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            <option value="all">Todos los colaboradores</option>
+                            ${collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button onclick="closeAbsencesReportModal()" style="padding: 0.8rem 1.5rem; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; font-family: inherit;">Cancelar</button>
+                        <button onclick="generateAbsencesReport()" class="btn-primary" style="width: auto; padding: 0.8rem 1.5rem;">Generar Reporte</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function closeAbsencesReportModal() {
+            const modal = document.getElementById('absencesReportModal');
+            if (modal) modal.remove();
+        }
+
+        async function generateAbsencesReport() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            const month = document.getElementById('absencesReportMonth').value;
+            const year = document.getElementById('absencesReportYear').value;
+            const collaboratorId = document.getElementById('absencesReportCollaborator').value;
+
+            showToast('Generando reporte...', 'info');
+
+            try {
+                const url = `${API_BASE_URL}/reports/absences?userId=${user.id}&month=${month}&year=${year}&collaboratorId=${collaboratorId}`;
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `reporte_faltas_${parseInt(month) + 1}_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast('Reporte generado correctamente', 'success');
+                closeAbsencesReportModal();
+            } catch (e) {
+                console.error(e);
+                showToast('Error al generar reporte', 'error');
+            }
+        }
+
+        async function openVacationsReportModal() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            // Fetch collaborators
+            const res = await fetch(`${API_BASE_URL}/attendance?userId=${user.id}`);
+            const result = await res.json();
+            const collaborators = result.success ? result.data : [];
+
+            const modal = document.createElement('div');
+            modal.id = 'vacationsReportModal';
+            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 10000;';
+
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 16px; width: 500px; max-width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0; color: #1e293b;">🏖️ Reporte de Vacaciones</h3>
+                        <button onclick="closeVacationsReportModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <select id="vacationsReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <select id="vacationsReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
+                        <select id="vacationsReportCollaborator" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            <option value="all">Todos los colaboradores</option>
+                            ${collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button onclick="closeVacationsReportModal()" style="padding: 0.8rem 1.5rem; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; font-family: inherit;">Cancelar</button>
+                        <button onclick="generateVacationsReport()" class="btn-primary" style="width: auto; padding: 0.8rem 1.5rem;">Generar Reporte</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function closeVacationsReportModal() {
+            const modal = document.getElementById('vacationsReportModal');
+            if (modal) modal.remove();
+        }
+
+        async function generateVacationsReport() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            const month = document.getElementById('vacationsReportMonth').value;
+            const year = document.getElementById('vacationsReportYear').value;
+            const collaboratorId = document.getElementById('vacationsReportCollaborator').value;
+
+            showToast('Generando reporte...', 'info');
+
+            try {
+                const url = `${API_BASE_URL}/reports/vacations?userId=${user.id}&month=${month}&year=${year}&collaboratorId=${collaboratorId}`;
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `reporte_vacaciones_${parseInt(month) + 1}_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast('Reporte generado correctamente', 'success');
+                closeVacationsReportModal();
+            } catch (e) {
+                console.error(e);
+                showToast('Error al generar reporte', 'error');
+            }
+        }
+
+        async function openIncidentsReportModal() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            // Fetch branches
+            const res = await fetch(`${API_BASE_URL}/branches`);
+            const result = await res.json();
+            const branches = result.success ? result.data : [];
+
+            const modal = document.createElement('div');
+            modal.id = 'incidentsReportModal';
+            modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 10000;';
+
+            const today = new Date();
+            const currentMonth = today.getMonth();
+            const currentYear = today.getFullYear();
+
+            modal.innerHTML = `
+                <div style="background: white; padding: 2rem; border-radius: 16px; width: 500px; max-width: 90%; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                        <h3 style="margin: 0; color: #1e293b;">⚠️ Reporte de Incidencias</h3>
+                        <button onclick="closeIncidentsReportModal()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">&times;</button>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <select id="incidentsReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <select id="incidentsReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 1.5rem;">
+                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Sucursal</label>
+                        <select id="incidentsReportBranch" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+                            <option value="all">Todas las sucursales</option>
+                            ${branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                        <button onclick="closeIncidentsReportModal()" style="padding: 0.8rem 1.5rem; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; font-family: inherit;">Cancelar</button>
+                        <button onclick="generateIncidentsReport()" class="btn-primary" style="width: auto; padding: 0.8rem 1.5rem;">Generar Reporte</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+        }
+
+        function closeIncidentsReportModal() {
+            const modal = document.getElementById('incidentsReportModal');
+            if (modal) modal.remove();
+        }
+
+        async function generateIncidentsReport() {
+            const userStr = sessionStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+
+            if (!user) return;
+
+            const month = document.getElementById('incidentsReportMonth').value;
+            const year = document.getElementById('incidentsReportYear').value;
+            const branchId = document.getElementById('incidentsReportBranch').value;
+
+            showToast('Generando reporte...', 'info');
+
+            try {
+                const url = `${API_BASE_URL}/reports/incidents?userId=${user.id}&month=${month}&year=${year}&branchId=${branchId}`;
+
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `reporte_incidencias_${parseInt(month) + 1}_${year}.xlsx`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                showToast('Reporte generado correctamente', 'success');
+                closeIncidentsReportModal();
             } catch (e) {
                 console.error(e);
                 showToast('Error al generar reporte', 'error');

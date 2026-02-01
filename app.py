@@ -1863,9 +1863,425 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
+# ==================== REPORTES ESPECÍFICOS ====================
+
+@app.route('/api/reports/absences', methods=['GET', 'OPTIONS'])
+def generate_absences_report():
+    """Generar reporte de faltas por colaborador"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+        from flask import send_file
+        
+        user_id = request.args.get('userId')
+        month = request.args.get('month')  # 0-11
+        year = request.args.get('year')
+        collaborator_id = request.args.get('collaboratorId')  # Optional
+        
+        if not user_id or not month or not year:
+            return jsonify({'success': False, 'message': 'Parámetros requeridos: userId, month, year'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar que el usuario es administrador
+        cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+        # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
+        allowed_users = ['helder mora', 'esthfania ramos']
+        if user['username'].lower() not in allowed_users:
+            return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
+        
+        # Convertir mes de JS (0-11) a SQL (1-12)
+        target_month = int(month) + 1
+        target_year = int(year)
+        
+        # Query para obtener faltas
+        if collaborator_id and collaborator_id != 'all':
+            cursor.execute("""
+                SELECT 
+                    e.full_name,
+                    e.branch_id,
+                    COUNT(*) as total_faltas,
+                    STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
+                FROM attendance a
+                JOIN employees e ON a.employee_id = e.id
+                WHERE a.status = 'absent'
+                    AND EXTRACT(MONTH FROM a.date) = %s
+                    AND EXTRACT(YEAR FROM a.date) = %s
+                    AND e.id = %s
+                GROUP BY e.id, e.full_name, e.branch_id
+                ORDER BY e.full_name
+            """, (target_month, target_year, collaborator_id))
+        else:
+            cursor.execute("""
+                SELECT 
+                    e.full_name,
+                    e.branch_id,
+                    COUNT(*) as total_faltas,
+                    STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
+                FROM attendance a
+                JOIN employees e ON a.employee_id = e.id
+                WHERE a.status = 'absent'
+                    AND EXTRACT(MONTH FROM a.date) = %s
+                    AND EXTRACT(YEAR FROM a.date) = %s
+                GROUP BY e.id, e.full_name, e.branch_id
+                ORDER BY e.full_name
+            """, (target_month, target_year))
+        
+        absences = cursor.fetchall()
+        
+        # Crear Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Reporte de Faltas"
+        
+        # Estilos
+        header_fill = PatternFill(start_color="DC2626", end_color="DC2626", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Encabezados
+        headers = ['Colaborador', 'Sucursal', 'Total Faltas', 'Fechas']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Datos
+        for row_idx, absence in enumerate(absences, 2):
+            ws.cell(row=row_idx, column=1, value=absence['full_name']).border = border
+            ws.cell(row=row_idx, column=2, value=absence['branch_id'] or 'N/A').border = border
+            ws.cell(row=row_idx, column=3, value=absence['total_faltas']).border = border
+            ws.cell(row=row_idx, column=4, value=absence['fechas']).border = border
+        
+        # Ajustar anchos
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 50
+        
+        # Guardar
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        conn.close()
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'reporte_faltas_{target_month}_{target_year}.xlsx'
+        )
+        
+    except Exception as e:
+        print(f"Error generating absences report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/reports/vacations', methods=['GET', 'OPTIONS'])
+def generate_vacations_report():
+    """Generar reporte de vacaciones por colaborador"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+        from flask import send_file
+        
+        user_id = request.args.get('userId')
+        month = request.args.get('month')  # 0-11
+        year = request.args.get('year')
+        collaborator_id = request.args.get('collaboratorId')  # Optional
+        
+        if not user_id or not month or not year:
+            return jsonify({'success': False, 'message': 'Parámetros requeridos: userId, month, year'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar que el usuario es administrador
+        cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+        # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
+        allowed_users = ['helder mora', 'esthfania ramos']
+        if user['username'].lower() not in allowed_users:
+            return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
+        
+        # Convertir mes de JS (0-11) a SQL (1-12)
+        target_month = int(month) + 1
+        target_year = int(year)
+        
+        # Query para obtener vacaciones
+        if collaborator_id and collaborator_id != 'all':
+            cursor.execute("""
+                SELECT 
+                    e.full_name,
+                    e.branch_id,
+                    COUNT(*) as total_dias_vacaciones,
+                    STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
+                FROM attendance a
+                JOIN employees e ON a.employee_id = e.id
+                WHERE a.status = 'vacation'
+                    AND EXTRACT(MONTH FROM a.date) = %s
+                    AND EXTRACT(YEAR FROM a.date) = %s
+                    AND e.id = %s
+                GROUP BY e.id, e.full_name, e.branch_id
+                ORDER BY e.full_name
+            """, (target_month, target_year, collaborator_id))
+        else:
+            cursor.execute("""
+                SELECT 
+                    e.full_name,
+                    e.branch_id,
+                    COUNT(*) as total_dias_vacaciones,
+                    STRING_AGG(TO_CHAR(a.date, 'DD/MM/YYYY'), ', ') as fechas
+                FROM attendance a
+                JOIN employees e ON a.employee_id = e.id
+                WHERE a.status = 'vacation'
+                    AND EXTRACT(MONTH FROM a.date) = %s
+                    AND EXTRACT(YEAR FROM a.date) = %s
+                GROUP BY e.id, e.full_name, e.branch_id
+                ORDER BY e.full_name
+            """, (target_month, target_year))
+        
+        vacations = cursor.fetchall()
+        
+        # Crear Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Reporte de Vacaciones"
+        
+        # Estilos
+        header_fill = PatternFill(start_color="3B82F6", end_color="3B82F6", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Encabezados
+        headers = ['Colaborador', 'Sucursal', 'Total Días', 'Fechas']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Datos
+        for row_idx, vacation in enumerate(vacations, 2):
+            ws.cell(row=row_idx, column=1, value=vacation['full_name']).border = border
+            ws.cell(row=row_idx, column=2, value=vacation['branch_id'] or 'N/A').border = border
+            ws.cell(row=row_idx, column=3, value=vacation['total_dias_vacaciones']).border = border
+            ws.cell(row=row_idx, column=4, value=vacation['fechas']).border = border
+        
+        # Ajustar anchos
+        ws.column_dimensions['A'].width = 30
+        ws.column_dimensions['B'].width = 20
+        ws.column_dimensions['C'].width = 15
+        ws.column_dimensions['D'].width = 50
+        
+        # Guardar
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        conn.close()
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'reporte_vacaciones_{target_month}_{target_year}.xlsx'
+        )
+        
+    except Exception as e:
+        print(f"Error generating vacations report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/reports/incidents', methods=['GET', 'OPTIONS'])
+def generate_incidents_report():
+    """Generar reporte de incidencias por sucursal"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from io import BytesIO
+        from flask import send_file
+        
+        user_id = request.args.get('userId')
+        month = request.args.get('month')  # 0-11
+        year = request.args.get('year')
+        branch_id = request.args.get('branchId')  # Optional
+        
+        if not user_id or not month or not year:
+            return jsonify({'success': False, 'message': 'Parámetros requeridos: userId, month, year'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Verificar que el usuario es administrador
+        cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        
+        if not user or user['role'] != 'admin':
+            return jsonify({'success': False, 'message': 'No autorizado'}), 403
+        
+        # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
+        allowed_users = ['helder mora', 'esthfania ramos']
+        if user['username'].lower() not in allowed_users:
+            return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
+        
+        # Convertir mes de JS (0-11) a SQL (1-12)
+        target_month = int(month) + 1
+        target_year = int(year)
+        
+        # Query para obtener incidencias
+        if branch_id and branch_id != 'all':
+            cursor.execute("""
+                SELECT 
+                    i.id,
+                    e.full_name as colaborador,
+                    e.branch_id as sucursal,
+                    i.incident_type as tipo,
+                    i.description as descripcion,
+                    i.status as estatus,
+                    TO_CHAR(i.created_at, 'DD/MM/YYYY HH24:MI') as fecha_registro,
+                    u.username as reportado_por
+                FROM incidents i
+                JOIN employees e ON i.employee_id = e.id
+                LEFT JOIN users u ON i.reported_by = u.id
+                WHERE EXTRACT(MONTH FROM i.created_at) = %s
+                    AND EXTRACT(YEAR FROM i.created_at) = %s
+                    AND e.branch_id = %s
+                ORDER BY i.created_at DESC
+            """, (target_month, target_year, branch_id))
+        else:
+            cursor.execute("""
+                SELECT 
+                    i.id,
+                    e.full_name as colaborador,
+                    e.branch_id as sucursal,
+                    i.incident_type as tipo,
+                    i.description as descripcion,
+                    i.status as estatus,
+                    TO_CHAR(i.created_at, 'DD/MM/YYYY HH24:MI') as fecha_registro,
+                    u.username as reportado_por
+                FROM incidents i
+                JOIN employees e ON i.employee_id = e.id
+                LEFT JOIN users u ON i.reported_by = u.id
+                WHERE EXTRACT(MONTH FROM i.created_at) = %s
+                    AND EXTRACT(YEAR FROM i.created_at) = %s
+                ORDER BY i.created_at DESC
+            """, (target_month, target_year))
+        
+        incidents = cursor.fetchall()
+        
+        # Crear Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Reporte de Incidencias"
+        
+        # Estilos
+        header_fill = PatternFill(start_color="F59E0B", end_color="F59E0B", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Encabezados
+        headers = ['ID', 'Colaborador', 'Sucursal', 'Tipo', 'Descripción', 'Estatus', 'Fecha Registro', 'Reportado Por']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Datos
+        for row_idx, incident in enumerate(incidents, 2):
+            ws.cell(row=row_idx, column=1, value=incident['id']).border = border
+            ws.cell(row=row_idx, column=2, value=incident['colaborador']).border = border
+            ws.cell(row=row_idx, column=3, value=incident['sucursal'] or 'N/A').border = border
+            ws.cell(row=row_idx, column=4, value=incident['tipo']).border = border
+            ws.cell(row=row_idx, column=5, value=incident['descripcion']).border = border
+            
+            # Color según estatus
+            status_cell = ws.cell(row=row_idx, column=6, value=incident['estatus'])
+            status_cell.border = border
+            if incident['estatus'] == 'activa':
+                status_cell.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+            elif incident['estatus'] == 'resuelta':
+                status_cell.fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+            
+            ws.cell(row=row_idx, column=7, value=incident['fecha_registro']).border = border
+            ws.cell(row=row_idx, column=8, value=incident['reportado_por'] or 'N/A').border = border
+        
+        # Ajustar anchos
+        ws.column_dimensions['A'].width = 8
+        ws.column_dimensions['B'].width = 30
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 20
+        ws.column_dimensions['E'].width = 40
+        ws.column_dimensions['F'].width = 15
+        ws.column_dimensions['G'].width = 18
+        ws.column_dimensions['H'].width = 20
+        
+        # Guardar
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        conn.close()
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'reporte_incidencias_{target_month}_{target_year}.xlsx'
+        )
+        
+    except Exception as e:
+        print(f"Error generating incidents report: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 # ==================== MAIN ====================
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3000))
     app.run(host='0.0.0.0', port=port, debug=True)
-
