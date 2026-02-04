@@ -1541,7 +1541,7 @@ def generate_tutor_report():
 
                 # Reportes Completos
                 cursor.execute(f"""
-                    SELECT employee_id, report_data FROM reports 
+                    SELECT employee_id, data as report_data FROM reports 
                     WHERE employee_id IN ({placeholders})
                     AND month = %s AND year = %s
                 """, collabs + [target_month - 1, target_year])
@@ -1719,7 +1719,7 @@ def generate_collaborator_report():
             cursor.execute("SELECT COUNT(*) as count FROM incidents WHERE reported_by = %s AND EXTRACT(MONTH FROM created_at) = %s AND EXTRACT(YEAR FROM created_at) = %s", (cid, target_month, target_year))
             c_incidencias = cursor.fetchone()['count']
             
-            cursor.execute("SELECT report_data FROM reports WHERE employee_id=%s AND month=%s AND year=%s", (cid, target_month-1, target_year))
+            cursor.execute("SELECT data as report_data FROM reports WHERE employee_id=%s AND month=%s AND year=%s", (cid, target_month-1, target_year))
             rep_row = cursor.fetchone()
             valid_report_points = 0
             
