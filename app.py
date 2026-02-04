@@ -269,6 +269,7 @@ def dashboard_stats():
             'vacaciones': 0,
             'permisos': 0,
             'incapacidades': 0,
+            'retardos': 0,
             'incidencias_activas': 0
         }
         
@@ -286,6 +287,8 @@ def dashboard_stats():
                 stats['permisos'] = count
             elif status == 'incapacity':
                 stats['incapacidades'] = count
+            elif status == 'delay':
+                stats['retardos'] = count
         
         # Count active incidents (linked to employees in roster via reported_by)
         cursor.execute(f"""
