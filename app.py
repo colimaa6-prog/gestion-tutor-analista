@@ -1384,6 +1384,46 @@ def mark_alert_read():
 
 # ==================== API: REPORTS ====================
 
+def get_report_context(year, month):
+    """Obtiene días hábiles y feriados para un mes/año dado"""
+    try:
+        import urllib.request
+        import json
+        from datetime import date
+        import calendar
+
+        # Get holidays
+        url = f"https://date.nager.at/api/v3/PublicHolidays/{year}/MX"
+        req = urllib.request.Request(
+            url, 
+            headers={'User-Agent': 'Mozilla/5.0'}
+        )
+        holiday_dates = []
+        try:
+            with urllib.request.urlopen(req) as response:
+                data = json.loads(response.read().decode())
+                # Parse YYYY-MM-DD
+                for h in data:
+                    parts = h['date'].split('-')
+                    holiday_dates.append(date(int(parts[0]), int(parts[1]), int(parts[2])))
+        except:
+            pass # Si falla API, asumimos 0 feriados
+
+        num_days = calendar.monthrange(year, month)[1]
+        business_days = []
+        
+        for d in range(1, num_days + 1):
+            curr_date = date(year, month, d)
+            # 0=Monday, 5=Saturday, 6=Sunday
+            # Excluir fines de semana y feriados
+            if curr_date.weekday() < 5 and curr_date not in holiday_dates:
+                business_days.append(curr_date)
+                
+        return business_days, holiday_dates
+    except Exception as e:
+        print(f"Error ctx: {e}")
+        return [], []
+
 @app.route('/api/reports/tutors', methods=['GET', 'OPTIONS'])
 def generate_tutor_report():
     """Generar reporte de resumen por tutor (solo para administradores)"""
@@ -1395,6 +1435,7 @@ def generate_tutor_report():
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from io import BytesIO
         from flask import send_file
+        import json
         
         user_id = request.args.get('userId')
         month = request.args.get('month')  # 0-11
@@ -1409,19 +1450,22 @@ def generate_tutor_report():
         
         # Verificar que el usuario es administrador
         cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
-        user = cursor.fetchone()
+        user_data = cursor.fetchone()
         
-        if not user or user['role'] != 'admin':
+        if not user_data or user_data['role'] != 'admin':
             return jsonify({'success': False, 'message': 'No autorizado'}), 403
         
         # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
         allowed_users = ['helder mora', 'esthfania ramos']
-        if user['username'].lower() not in allowed_users:
+        if user_data['username'].lower() not in allowed_users:
             return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
         
-        # Convertir mes de JS (0-11) a SQL (1-12)
         target_month = int(month) + 1
         target_year = int(year)
+        
+        # Contexto de negocio (días hábiles y festivos)
+        business_days, holidays = get_report_context(target_year, target_month)
+        num_business_days = len(business_days)
         
         # Obtener lista de tutores supervisados
         if tutor_id and tutor_id != 'all':
@@ -1446,153 +1490,128 @@ def generate_tutor_report():
         ws = wb.active
         ws.title = f"Reporte Tutores {target_month}-{target_year}"
         
-        # Estilos
         header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True, size=12)
-        border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
+        border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
         
-        # Título
-        ws.merge_cells('A1:H1')
+        ws.merge_cells('A1:I1')
         ws['A1'] = f'REPORTE DE CUMPLIMIENTO POR TUTOR - {target_month}/{target_year}'
         ws['A1'].font = Font(bold=True, size=14)
         ws['A1'].alignment = Alignment(horizontal='center')
         
-        # Headers
-        headers = ['Tutor', 'Asistencias Registradas', 'Incidencias Registradas', 'Reportes Completados', 
+        headers = ['Tutor', 'Colaboradores', 'Asistencias Registradas', 'Incidencias Registradas', 'Reportes Completados', 
                    'Total Esperado', 'Total Registrado', 'Cumplimiento %', 'Estado']
         for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=3, column=col)
-            cell.value = header
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.fill = header_fill; cell.font = header_font; cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = border
         
-        # Datos por tutor
         row = 4
         for tutor in tutors:
             tutor_id_val = tutor['id']
             tutor_name = tutor['username']
             
-            # Contar asistencias registradas por el tutor en el mes
-            cursor.execute("""
-                SELECT COUNT(*) as count FROM attendance a
-                JOIN attendance_roster ar ON a.employee_id = ar.employee_id
-                WHERE ar.added_by_user_id = %s
-                AND EXTRACT(MONTH FROM a.date) = %s
-                AND EXTRACT(YEAR FROM a.date) = %s
-            """, (tutor_id_val, target_month, target_year))
-            asistencias = cursor.fetchone()['count']
+            # Obtener colaboradores
+            cursor.execute("SELECT employee_id FROM attendance_roster WHERE added_by_user_id = %s", (tutor_id_val,))
+            collabs = [r['employee_id'] for r in cursor.fetchall()]
+            num_collabs = len(collabs)
             
-            # Contar incidencias registradas por el tutor en el mes
+            tutor_asistencias_validas = 0
+            tutor_reportes_llenos = 0
+            
+            if collabs:
+                placeholders = ','.join(['%s' for _ in collabs])
+                
+                # Asistencias en días hábiles
+                cursor.execute(f"""
+                    SELECT employee_id, date, status FROM attendance 
+                    WHERE employee_id IN ({placeholders})
+                    AND EXTRACT(MONTH FROM date) = %s AND EXTRACT(YEAR FROM date) = %s
+                """, collabs + [target_month, target_year])
+                
+                att_map = {}
+                for rec in cursor.fetchall():
+                    att_map[(rec['employee_id'], rec['date'])] = rec['status']
+                
+                for cid in collabs:
+                    for b_day in business_days:
+                        st = att_map.get((cid, b_day))
+                        if st in ['present', 'delay', 'vacation', 'permission']:
+                            tutor_asistencias_validas += 1
+
+                # Reportes Completos
+                cursor.execute(f"""
+                    SELECT employee_id, report_data FROM reports 
+                    WHERE employee_id IN ({placeholders})
+                    AND month = %s AND year = %s
+                """, collabs + [target_month - 1, target_year])
+                
+                report_records = {r['employee_id']: r['report_data'] for r in cursor.fetchall()}
+                
+                for cid in collabs:
+                    rep_data_str = report_records.get(cid)
+                    if rep_data_str:
+                        try:
+                            data = json.loads(rep_data_str)
+                            is_complete = True
+                            faltantes = data.get('faltantes', {})
+                            for b_day in business_days:
+                                if faltantes.get(str(b_day.day), {}).get('status') != 'check':
+                                    is_complete = False; break
+                            if is_complete: tutor_reportes_llenos += 1
+                        except: pass
+            
+            # Incidencias
             cursor.execute("""
                 SELECT COUNT(*) as count FROM incidents i
                 JOIN attendance_roster ar ON i.reported_by = ar.employee_id
                 WHERE ar.added_by_user_id = %s
-                AND EXTRACT(MONTH FROM i.created_at) = %s
-                AND EXTRACT(YEAR FROM i.created_at) = %s
+                AND EXTRACT(MONTH FROM i.created_at) = %s AND EXTRACT(YEAR FROM i.created_at) = %s
             """, (tutor_id_val, target_month, target_year))
-            incidencias = cursor.fetchone()['count']
+            tutor_incidencias = cursor.fetchone()['count']
             
-            # Contar reportes completados por el tutor en el mes
-            cursor.execute("""
-                SELECT COUNT(*) as count FROM reports r
-                JOIN employees e ON r.employee_id = e.id
-                JOIN attendance_roster ar ON e.id = ar.employee_id
-                WHERE ar.added_by_user_id = %s
-                AND r.month = %s
-                AND r.year = %s
-            """, (tutor_id_val, target_month - 1, target_year))  # month en reports es 0-11
-            reportes = cursor.fetchone()['count']
-            
-            # Calcular total esperado (días del mes * colaboradores asignados)
-            cursor.execute("""
-                SELECT COUNT(DISTINCT ar.employee_id) as count
-                FROM attendance_roster ar
-                WHERE ar.added_by_user_id = %s
-            """, (tutor_id_val,))
-            num_colaboradores = cursor.fetchone()['count']
-            
-            # Días en el mes
-            from calendar import monthrange
-            days_in_month = monthrange(target_year, target_month)[1]
-            total_esperado = days_in_month * num_colaboradores
-            
-            # Total registrado
-            total_registrado = asistencias + incidencias + reportes
-            
-            # Porcentaje de cumplimiento
+            # Totales
+            total_esperado = (num_business_days * num_collabs) + (1 * num_collabs)
+            total_registrado = tutor_asistencias_validas + tutor_reportes_llenos + tutor_incidencias
             cumplimiento = (total_registrado / total_esperado * 100) if total_esperado > 0 else 0
             
             # Estado
-            if cumplimiento >= 90:
-                estado = "Excelente"
-                estado_color = "22C55E"
-            elif cumplimiento >= 70:
-                estado = "Bueno"
-                estado_color = "3B82F6"
-            elif cumplimiento >= 50:
-                estado = "Regular"
-                estado_color = "F59E0B"
-            else:
-                estado = "Bajo"
-                estado_color = "EF4444"
+            if cumplimiento >= 90: estado = "Excelente"; ecolor = "22C55E"
+            elif cumplimiento >= 70: estado = "Bueno"; ecolor = "3B82F6"
+            elif cumplimiento >= 50: estado = "Regular"; ecolor = "F59E0B"
+            else: estado = "Bajo"; ecolor = "EF4444"
             
-            # Escribir fila
-            ws.cell(row=row, column=1, value=tutor_name).border = border
-            ws.cell(row=row, column=2, value=asistencias).border = border
-            ws.cell(row=row, column=3, value=incidencias).border = border
-            ws.cell(row=row, column=4, value=reportes).border = border
-            ws.cell(row=row, column=5, value=total_esperado).border = border
-            ws.cell(row=row, column=6, value=total_registrado).border = border
-            ws.cell(row=row, column=7, value=f"{cumplimiento:.2f}%").border = border
+            vals = [tutor_name, num_collabs, tutor_asistencias_validas, tutor_incidencias, tutor_reportes_llenos,
+                    total_esperado, total_registrado, f"{cumplimiento:.2f}%"]
             
-            estado_cell = ws.cell(row=row, column=8, value=estado)
-            estado_cell.border = border
-            estado_cell.fill = PatternFill(start_color=estado_color, end_color=estado_color, fill_type="solid")
-            estado_cell.font = Font(color="FFFFFF", bold=True)
-            estado_cell.alignment = Alignment(horizontal='center')
+            for c_idx, val in enumerate(vals, 1):
+                ws.cell(row, c_idx, val).border = border
+            
+            ecell = ws.cell(row, 9, estado)
+            ecell.border = border; ecell.fill = PatternFill(start_color=ecolor, end_color=ecolor, fill_type="solid")
+            ecell.font = Font(color="FFFFFF", bold=True); ecell.alignment = Alignment(horizontal='center')
             
             row += 1
         
-        # Ajustar anchos de columna
-        ws.column_dimensions['A'].width = 25
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 22
-        ws.column_dimensions['D'].width = 22
-        ws.column_dimensions['E'].width = 18
-        ws.column_dimensions['F'].width = 18
-        ws.column_dimensions['G'].width = 18
-        ws.column_dimensions['H'].width = 15
+        ws.column_dimensions['A'].width = 25; ws.column_dimensions['B'].width = 15
+        for c in ['C','D','E','F','G','H']: ws.column_dimensions[c].width = 18
+        ws.column_dimensions['I'].width = 15
         
-        # Guardar en BytesIO
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-        
         conn.close()
         
-        return send_file(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=f'reporte_tutores_{target_month}_{target_year}.xlsx'
-        )
+        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f'reporte_tutores_{target_month}_{target_year}.xlsx')
         
     except Exception as e:
         print(f"Error generating tutor report: {e}")
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/reports/collaborators', methods=['GET', 'OPTIONS'])
 def generate_collaborator_report():
-    """Generar reporte de resumen por colaborador (solo para administradores)"""
+    """Generar reporte de resumen por colaborador"""
     if request.method == 'OPTIONS':
         return '', 204
     
@@ -1601,11 +1620,12 @@ def generate_collaborator_report():
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
         from io import BytesIO
         from flask import send_file
+        import json 
         
         user_id = request.args.get('userId')
-        month = request.args.get('month')  # 0-11
+        month = request.args.get('month') 
         year = request.args.get('year')
-        collaborator_id = request.args.get('collaboratorId')  # Optional: specific collaborator or 'all'
+        collaborator_id = request.args.get('collaboratorId')
         
         if not user_id or not month or not year:
             return jsonify({'success': False, 'message': 'Parámetros requeridos: userId, month, year'}), 400
@@ -1613,27 +1633,25 @@ def generate_collaborator_report():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Verificar que el usuario es administrador
         cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
-        user = cursor.fetchone()
+        user_data = cursor.fetchone()
         
-        if not user or user['role'] != 'admin':
+        if not user_data or user_data['role'] != 'admin':
             return jsonify({'success': False, 'message': 'No autorizado'}), 403
         
-        # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
         allowed_users = ['helder mora', 'esthfania ramos']
-        if user['username'].lower() not in allowed_users:
+        if user_data['username'].lower() not in allowed_users:
             return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
         
-        # Convertir mes de JS (0-11) a SQL (1-12)
         target_month = int(month) + 1
         target_year = int(year)
         
-        # Obtener IDs de tutores supervisados
-        cursor.execute("""
-            SELECT id FROM users 
-            WHERE supervisor_id = %s AND role = 'tutor_analista'
-        """, (user_id,))
+        # Contexto (Días hábiles)
+        business_days, holidays = get_report_context(target_year, target_month)
+        num_business_days = len(business_days)
+        
+        # Obtener tutores
+        cursor.execute("SELECT id FROM users WHERE supervisor_id = %s AND role = 'tutor_analista'", (user_id,))
         tutor_ids = [row['id'] for row in cursor.fetchall()]
         
         if not tutor_ids:
@@ -1641,170 +1659,121 @@ def generate_collaborator_report():
         
         placeholders = ','.join(['%s' for _ in tutor_ids])
         
-        # Obtener lista de colaboradores
-        if collaborator_id and collaborator_id != 'all':
-            cursor.execute(f"""
-                SELECT DISTINCT e.id, e.full_name, b.name as branch_name
-                FROM employees e
-                LEFT JOIN branches b ON e.branch_id = b.id
-                JOIN attendance_roster ar ON e.id = ar.employee_id
-                WHERE e.id = %s AND ar.added_by_user_id IN ({placeholders})
-                ORDER BY e.full_name ASC
-            """, [collaborator_id] + tutor_ids)
-        else:
-            cursor.execute(f"""
-                SELECT DISTINCT e.id, e.full_name, b.name as branch_name
-                FROM employees e
-                LEFT JOIN branches b ON e.branch_id = b.id
-                JOIN attendance_roster ar ON e.id = ar.employee_id
-                WHERE ar.added_by_user_id IN ({placeholders})
-                ORDER BY e.full_name ASC
-            """, tutor_ids)
+        sql_collabs = f"SELECT DISTINCT e.id, e.full_name, b.name as branch_name FROM employees e LEFT JOIN branches b ON e.branch_id = b.id JOIN attendance_roster ar ON e.id = ar.employee_id WHERE ar.added_by_user_id IN ({placeholders})"
+        params = list(tutor_ids)
         
+        if collaborator_id and collaborator_id != 'all':
+            sql_collabs += " AND e.id = %s"
+            params.append(collaborator_id)
+            
+        sql_collabs += " ORDER BY e.full_name ASC"
+        cursor.execute(sql_collabs, params)
         collaborators = cursor.fetchall()
         
         if not collaborators:
-            return jsonify({'success': False, 'message': 'No se encontraron colaboradores para generar el reporte'}), 404
+            return jsonify({'success': False, 'message': 'No se encontraron colaboradores'}), 404
         
-        # Crear workbook
         wb = Workbook()
         ws = wb.active
         ws.title = f"Reporte Colaboradores {target_month}-{target_year}"
         
-        # Estilos
         header_fill = PatternFill(start_color="8B5CF6", end_color="8B5CF6", fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True, size=11)
-        border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
+        border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
         
-        # Título
         ws.merge_cells('A1:K1')
         ws['A1'] = f'REPORTE DE CUMPLIMIENTO POR COLABORADOR - {target_month}/{target_year}'
-        ws['A1'].font = Font(bold=True, size=14)
-        ws['A1'].alignment = Alignment(horizontal='center')
+        ws['A1'].font = Font(bold=True, size=14); ws['A1'].alignment = Alignment(horizontal='center')
         
-        # Headers
-        headers = ['Colaborador', 'Sucursal', 'Asistencias', 'Faltas', 'Vacaciones', 'Permisos', 
-                   'Incapacidades', 'Incidencias', 'Reportes', 'Cumplimiento %', 'Estado']
+        headers = ['Colaborador', 'Sucursal', 'Asistencias', 'Faltas', 'Vacaciones', 'Permisos', 'Incapacidades', 'Incidencias', 'Reportes (pts)', 'Cumplimiento %', 'Estado']
         for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=3, column=col)
-            cell.value = header
-            cell.fill = header_fill
-            cell.font = header_font
-            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.fill = header_fill; cell.font = header_font; cell.alignment = Alignment(horizontal='center', vertical='center')
             cell.border = border
-        
-        # Datos por colaborador
+            
         row = 4
         for collab in collaborators:
-            collab_id = collab['id']
-            collab_name = collab['full_name']
-            branch_name = collab['branch_name'] or 'Sin sucursal'
+            cid = collab['id']
+            cname = collab['full_name']
+            bname = collab['branch_name'] or 'Sin sucursal'
             
-            # Contar asistencias por tipo
-            cursor.execute("""
-                SELECT status, COUNT(*) as count FROM attendance
-                WHERE employee_id = %s
-                AND EXTRACT(MONTH FROM date) = %s
-                AND EXTRACT(YEAR FROM date) = %s
-                GROUP BY status
-            """, (collab_id, target_month, target_year))
+            cursor.execute("SELECT date, status FROM attendance WHERE employee_id = %s AND EXTRACT(MONTH FROM date) = %s AND EXTRACT(YEAR FROM date) = %s", (cid, target_month, target_year))
+            att_records = {r['date']: r['status'] for r in cursor.fetchall()}
             
-            attendance_counts = {row['status']: row['count'] for row in cursor.fetchall()}
-            asistencias = attendance_counts.get('present', 0) + attendance_counts.get('delay', 0)
-            faltas = attendance_counts.get('absent', 0)
-            vacaciones = attendance_counts.get('vacation', 0)
-            permisos = attendance_counts.get('permission', 0)
-            incapacidades = attendance_counts.get('incapacity', 0)
+            valid_attendance_points = 0
+            c_asist = 0; c_faltas = 0; c_vac = 0; c_perm = 0; c_incap = 0
             
-            # Contar incidencias
-            cursor.execute("""
-                SELECT COUNT(*) as count FROM incidents
-                WHERE reported_by = %s
-                AND EXTRACT(MONTH FROM created_at) = %s
-                AND EXTRACT(YEAR FROM created_at) = %s
-            """, (collab_id, target_month, target_year))
-            incidencias = cursor.fetchone()['count']
+            for b_day in business_days:
+                st = att_records.get(b_day)
+                if st == 'present' or st == 'delay':
+                    valid_attendance_points += 1; c_asist += 1
+                elif st == 'vacation':
+                    valid_attendance_points += 1; c_vac += 1
+                elif st == 'permission':
+                    valid_attendance_points += 1; c_perm += 1
+                elif st == 'absent':
+                    c_faltas += 1
+                elif st == 'incapacity':
+                    c_incap += 1
+                
+            cursor.execute("SELECT COUNT(*) as count FROM incidents WHERE reported_by = %s AND EXTRACT(MONTH FROM created_at) = %s AND EXTRACT(YEAR FROM created_at) = %s", (cid, target_month, target_year))
+            c_incidencias = cursor.fetchone()['count']
             
-            # Contar reportes
-            cursor.execute("""
-                SELECT COUNT(*) as count FROM reports
-                WHERE employee_id = %s
-                AND month = %s
-                AND year = %s
-            """, (collab_id, target_month - 1, target_year))  # month en reports es 0-11
-            reportes = cursor.fetchone()['count']
+            cursor.execute("SELECT report_data FROM reports WHERE employee_id=%s AND month=%s AND year=%s", (cid, target_month-1, target_year))
+            rep_row = cursor.fetchone()
+            valid_report_points = 0
             
-            # Calcular cumplimiento (días del mes)
-            from calendar import monthrange
-            days_in_month = monthrange(target_year, target_month)[1]
-            total_registrado = asistencias + faltas + vacaciones + permisos + incapacidades
-            cumplimiento = (total_registrado / days_in_month * 100) if days_in_month > 0 else 0
+            if rep_row and rep_row['report_data']:
+                try:
+                    data = json.loads(rep_row['report_data'])
+                    faltantes = data.get('faltantes', {})
+                    for b_day in business_days:
+                         if faltantes.get(str(b_day.day), {}).get('status') == 'check':
+                             valid_report_points += 1
+                except: pass
             
-            # Estado
-            if cumplimiento >= 90:
-                estado = "Excelente"
-                estado_color = "22C55E"
-            elif cumplimiento >= 70:
-                estado = "Bueno"
-                estado_color = "3B82F6"
-            elif cumplimiento >= 50:
-                estado = "Regular"
-                estado_color = "F59E0B"
-            else:
-                estado = "Bajo"
-                estado_color = "EF4444"
+            # Numerador: Asistencias + Reportes (diarios)
+            numerador = valid_attendance_points + valid_report_points
             
-            # Escribir fila
-            ws.cell(row=row, column=1, value=collab_name).border = border
-            ws.cell(row=row, column=2, value=branch_name).border = border
-            ws.cell(row=row, column=3, value=asistencias).border = border
-            ws.cell(row=row, column=4, value=faltas).border = border
-            ws.cell(row=row, column=5, value=vacaciones).border = border
-            ws.cell(row=row, column=6, value=permisos).border = border
-            ws.cell(row=row, column=7, value=incapacidades).border = border
-            ws.cell(row=row, column=8, value=incidencias).border = border
-            ws.cell(row=row, column=9, value=reportes).border = border
-            ws.cell(row=row, column=10, value=f"{cumplimiento:.2f}%").border = border
+            # Denominador: 2 * Días Hábiles (Asistencia + Reporte)
+            denominador = num_business_days * 2
             
-            estado_cell = ws.cell(row=row, column=11, value=estado)
-            estado_cell.border = border
-            estado_cell.fill = PatternFill(start_color=estado_color, end_color=estado_color, fill_type="solid")
-            estado_cell.font = Font(color="FFFFFF", bold=True)
-            estado_cell.alignment = Alignment(horizontal='center')
+            cumplimiento = (numerador / denominador * 100) if denominador > 0 else 0
+            
+            if cumplimiento >= 90: estado = "Excelente"; ecolor = "22C55E"
+            elif cumplimiento >= 70: estado = "Bueno"; ecolor = "3B82F6"
+            elif cumplimiento >= 50: estado = "Regular"; ecolor = "F59E0B"
+            else: estado = "Bajo"; ecolor = "EF4444"
+            
+            ws.cell(row, 1, cname).border = border
+            ws.cell(row, 2, bname).border = border
+            ws.cell(row, 3, c_asist).border = border
+            ws.cell(row, 4, c_faltas).border = border
+            ws.cell(row, 5, c_vac).border = border
+            ws.cell(row, 6, c_perm).border = border
+            ws.cell(row, 7, c_incap).border = border
+            ws.cell(row, 8, c_incidencias).border = border
+            ws.cell(row, 9, valid_report_points).border = border
+            ws.cell(row, 10, f"{cumplimiento:.2f}%").border = border
+            
+            ecell = ws.cell(row, 11, estado)
+            ecell.border = border; ecell.fill = PatternFill(start_color=ecolor, end_color=ecolor, fill_type="solid")
+            ecell.font = Font(color="FFFFFF", bold=True); ecell.alignment = Alignment(horizontal='center')
             
             row += 1
+            
+        ws.column_dimensions['A'].width = 30; ws.column_dimensions['B'].width = 20
         
-        # Ajustar anchos de columna
-        ws.column_dimensions['A'].width = 30
-        ws.column_dimensions['B'].width = 20
-        for col in ['C', 'D', 'E', 'F', 'G', 'H', 'I']:
-            ws.column_dimensions[col].width = 14
-        ws.column_dimensions['J'].width = 16
-        ws.column_dimensions['K'].width = 14
-        
-        # Guardar en BytesIO
         output = BytesIO()
         wb.save(output)
         output.seek(0)
-        
         conn.close()
         
-        return send_file(
-            output,
-            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            as_attachment=True,
-            download_name=f'reporte_colaboradores_{target_month}_{target_year}.xlsx'
-        )
+        return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name=f'reporte_colaboradores_{target_month}_{target_year}.xlsx')
         
     except Exception as e:
         print(f"Error generating collaborator report: {e}")
-        import traceback
-        traceback.print_exc()
+        import traceback; traceback.print_exc()
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/reports/available-months', methods=['GET', 'OPTIONS'])
