@@ -2525,6 +2525,37 @@ def get_dashboard_delays():
     finally:
         conn.close()
 
+@app.route('/api/holidays/<int:year>', methods=['GET', 'OPTIONS'])
+def get_holidays(year):
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    try:
+        import urllib.request
+        
+        # URL de la API de días festivos
+        url = f"https://date.nager.at/api/v3/PublicHolidays/{year}/MX"
+        
+        # Configurar request con User-Agent para evitar bloqueo 403
+        req = urllib.request.Request(
+            url, 
+            data=None, 
+            headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            }
+        )
+        
+        with urllib.request.urlopen(req) as response:
+            data = json.loads(response.read().decode())
+            # Simplificar datos: solo devolver fechas
+            holidays = [item['date'] for item in data] 
+            return jsonify({'success': True, 'data': holidays})
+            
+    except Exception as e:
+        print(f"Error fetching holidays: {e}")
+        # En caso de error, devolver lista vacía para no romper el frontend
+        return jsonify({'success': True, 'data': []})
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3000))
     app.run(host='0.0.0.0', port=port, debug=True)

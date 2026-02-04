@@ -134,10 +134,15 @@ async function loadReportes() {
 async function fetchAndRenderReports() {
     try {
         const userStr = sessionStorage.getItem('user');
-        const user = userStr ? JSON.parse(userStr) : null;
-        const userId = user ? user.id : null;
+        if (!userStr) return;
+        const user = JSON.parse(userStr);
 
-        const res = await fetch(`${API_BASE_URL}/reports?month=${currentMonth}&year=${currentYear}&userId=${userId}`);
+        // Fetch reports data and holidays in parallel
+        const [res, holidays] = await Promise.all([
+            fetch(`${API_BASE_URL}/reports?month=${currentMonth}&year=${currentYear}&userId=${user.id}`),
+            fetchHolidays(currentYear)
+        ]);
+
         const result = await res.json();
 
         // Backend devuelve 'employees', no 'data'
@@ -183,12 +188,17 @@ async function fetchAndRenderReports() {
                     const status = reportData.faltantes && reportData.faltantes[d] ? reportData.faltantes[d].status : null;
                     const comment = reportData.faltantes && reportData.faltantes[d] ? reportData.faltantes[d].comment : '';
 
-                    // Check if weekend
+                    // Check if weekend or holiday
+                    const dStr = d < 10 ? `0${d}` : `${d}`;
+                    const mStr = (currentMonth + 1) < 10 ? `0${currentMonth + 1}` : `${currentMonth + 1}`;
+                    const dateKey = `${currentYear}-${mStr}-${dStr}`;
+
                     const date = new Date(currentYear, currentMonth, d);
                     const dayOfWeek = date.getDay();
                     const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6); // 0=Sun, 6=Sat
+                    const isHoliday = holidays && holidays.includes(dateKey);
 
-                    html += createCell('faltantes', emp.id, d, status, comment, d, 'min-width: 30px;', false, isWeekend);
+                    html += createCell('faltantes', emp.id, d, status, comment, d, 'min-width: 30px;', false, isWeekend, isHoliday);
                 } else {
                     html += `<td style="background: #f1f5f9; border-bottom: 1px solid #cbd5e1;"></td>`;
                 }
@@ -259,7 +269,7 @@ async function fetchAndRenderReports() {
     }
 }
 
-function createCell(type, empId, key, status, comment, label, attrs = '', showLabel = false, isWeekend = false) {
+function createCell(type, empId, key, status, comment, label, attrs = '', showLabel = false, isWeekend = false, isHoliday = false) {
     let content = '';
 
     // Determine background color
@@ -270,6 +280,9 @@ function createCell(type, empId, key, status, comment, label, attrs = '', showLa
     } else if (status === 'cross') {
         content = '❌';
         bgColor = '#fef2f2'; // Red-50
+    } else if (isHoliday) {
+        bgColor = 'rgba(139, 92, 246, 0.15)'; // Morado translúcido
+        content = '⛔'; // No aplica
     } else if (isWeekend) {
         bgColor = '#cbd5e1'; // Slate-300 (Gray for weekends)
     }
