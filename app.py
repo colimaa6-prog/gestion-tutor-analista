@@ -1426,7 +1426,7 @@ def get_report_context(year, month):
 
 @app.route('/api/reports/tutors', methods=['GET', 'OPTIONS'])
 def generate_tutor_report():
-    """Generar reporte de resumen por tutor (solo para administradores)"""
+    """Generar reporte de resumen por tutor"""
     if request.method == 'OPTIONS':
         return '', 204
     
@@ -1438,9 +1438,9 @@ def generate_tutor_report():
         import json
         
         user_id = request.args.get('userId')
-        month = request.args.get('month')  # 0-11
+        month = request.args.get('month') 
         year = request.args.get('year')
-        tutor_id = request.args.get('tutorId')  # Optional: specific tutor or 'all'
+        tutor_id = request.args.get('tutorId')
         
         if not user_id or not month or not year:
             return jsonify({'success': False, 'message': 'Parámetros requeridos: userId, month, year'}), 400
@@ -1448,14 +1448,12 @@ def generate_tutor_report():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Verificar que el usuario es administrador
         cursor.execute("SELECT username, role FROM users WHERE id = %s", (user_id,))
         user_data = cursor.fetchone()
         
         if not user_data or user_data['role'] != 'admin':
             return jsonify({'success': False, 'message': 'No autorizado'}), 403
         
-        # Verificar que es Helder Mora o Esthfania Ramos (case-insensitive)
         allowed_users = ['helder mora', 'esthfania ramos']
         if user_data['username'].lower() not in allowed_users:
             return jsonify({'success': False, 'message': 'Solo Helder Mora y Esthfania Ramos pueden generar este reporte'}), 403
@@ -1463,29 +1461,16 @@ def generate_tutor_report():
         target_month = int(month) + 1
         target_year = int(year)
         
-        # Contexto de negocio (días hábiles y festivos)
         business_days, holidays = get_report_context(target_year, target_month)
         num_business_days = len(business_days)
         
-        # Obtener lista de tutores supervisados
         if tutor_id and tutor_id != 'all':
-            cursor.execute("""
-                SELECT id, username FROM users 
-                WHERE id = %s AND supervisor_id = %s AND role = 'tutor_analista'
-            """, (tutor_id, user_id))
+            cursor.execute("SELECT id, username FROM users WHERE id = %s AND supervisor_id = %s AND role = 'tutor_analista'", (tutor_id, user_id))
         else:
-            cursor.execute("""
-                SELECT id, username FROM users 
-                WHERE supervisor_id = %s AND role = 'tutor_analista'
-                ORDER BY username ASC
-            """, (user_id,))
+            cursor.execute("SELECT id, username FROM users WHERE supervisor_id = %s AND role = 'tutor_analista' ORDER BY username ASC", (user_id,))
         
         tutors = cursor.fetchall()
         
-        if not tutors:
-            return jsonify({'success': False, 'message': 'No se encontraron tutores para generar el reporte'}), 404
-        
-        # Crear workbook
         wb = Workbook()
         ws = wb.active
         ws.title = f"Reporte Tutores {target_month}-{target_year}"
@@ -1496,11 +1481,10 @@ def generate_tutor_report():
         
         ws.merge_cells('A1:I1')
         ws['A1'] = f'REPORTE DE CUMPLIMIENTO POR TUTOR - {target_month}/{target_year}'
-        ws['A1'].font = Font(bold=True, size=14)
-        ws['A1'].alignment = Alignment(horizontal='center')
+        ws['A1'].font = Font(bold=True, size=14); ws['A1'].alignment = Alignment(horizontal='center')
         
-        headers = ['Tutor', 'Colaboradores', 'Asistencias Registradas', 'Incidencias Registradas', 'Reportes Completados', 
-                   'Total Esperado', 'Total Registrado', 'Cumplimiento %', 'Estado']
+        headers = ['Tutor', 'Colaboradores', 'Asistencias (Slots)', 'Incidencias', 'Reportes Completos', 
+                   'Score Asistencia (50%)', 'Score Reportes (50%)', 'Cumplimiento %', 'Estado']
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=3, column=col, value=header)
             cell.fill = header_fill; cell.font = header_font; cell.alignment = Alignment(horizontal='center', vertical='center')
@@ -1511,18 +1495,16 @@ def generate_tutor_report():
             tutor_id_val = tutor['id']
             tutor_name = tutor['username']
             
-            # Obtener colaboradores
             cursor.execute("SELECT employee_id FROM attendance_roster WHERE added_by_user_id = %s", (tutor_id_val,))
             collabs = [r['employee_id'] for r in cursor.fetchall()]
             num_collabs = len(collabs)
             
-            tutor_asistencias_validas = 0
-            tutor_reportes_llenos = 0
+            # --- 1. Asistencia Tutores (50%) ---
+            total_attendance_slots_expected = num_business_days * num_collabs
+            filled_slots = 0
             
             if collabs:
                 placeholders = ','.join(['%s' for _ in collabs])
-                
-                # Asistencias en días hábiles
                 cursor.execute(f"""
                     SELECT employee_id, date, status FROM attendance 
                     WHERE employee_id IN ({placeholders})
@@ -1535,16 +1517,23 @@ def generate_tutor_report():
                 
                 for cid in collabs:
                     for b_day in business_days:
+                        # Any non-empty status counts
                         st = att_map.get((cid, b_day))
-                        if st in ['present', 'delay', 'vacation', 'permission']:
-                            tutor_asistencias_validas += 1
+                        if st: # Not None/Empty
+                            filled_slots += 1
 
-                # Reportes Completos
+            attendance_score = (filled_slots / total_attendance_slots_expected * 50) if total_attendance_slots_expected > 0 else 0
+            
+            # --- 2. Reportes Tutores (50%) ---
+            complete_reports_count = 0
+            
+            if collabs:
+                placeholders = ','.join(['%s' for _ in collabs])
                 cursor.execute(f"""
                     SELECT employee_id, data as report_data FROM reports 
                     WHERE employee_id IN ({placeholders})
                     AND month = %s AND year = %s
-                """, collabs + [target_month - 1, target_year])
+                """, collabs + [target_month - 1, target_year]) # month 0-11
                 
                 report_records = {r['employee_id']: r['report_data'] for r in cursor.fetchall()}
                 
@@ -1552,16 +1541,37 @@ def generate_tutor_report():
                     rep_data_str = report_records.get(cid)
                     if rep_data_str:
                         try:
+                            # Verify Completely Full (Any status for all requirements)
                             data = json.loads(rep_data_str)
-                            is_complete = True
+                            is_full = True
+                            
+                            # Check Faltantes (All business days must have something)
                             faltantes = data.get('faltantes', {})
                             for b_day in business_days:
-                                if faltantes.get(str(b_day.day), {}).get('status') != 'check':
-                                    is_complete = False; break
-                            if is_complete: tutor_reportes_llenos += 1
+                                if not faltantes.get(str(b_day.day), {}).get('status'):
+                                    is_full = False; break
+                            
+                            # Check Guias (2)
+                            guias = data.get('guias', {})
+                            for k in ['1', '2']:
+                                if not guias.get(k, {}).get('status'):
+                                    is_full = False; break
+                                    
+                            # Check Tableros (4)
+                            tableros = data.get('tableros', {})
+                            for k in ['1', '2', '3', '4']:
+                                if not tableros.get(k, {}).get('status'):
+                                    is_full = False; break
+                                    
+                            if is_full:
+                                complete_reports_count += 1
                         except: pass
             
-            # Incidencias
+            report_score = (complete_reports_count / num_collabs * 50) if num_collabs > 0 else 0
+            
+            # --- Total ---
+            cumplimiento = attendance_score + report_score
+            
             cursor.execute("""
                 SELECT COUNT(*) as count FROM incidents i
                 JOIN attendance_roster ar ON i.reported_by = ar.employee_id
@@ -1570,19 +1580,13 @@ def generate_tutor_report():
             """, (tutor_id_val, target_month, target_year))
             tutor_incidencias = cursor.fetchone()['count']
             
-            # Totales
-            total_esperado = (num_business_days * num_collabs) + (1 * num_collabs)
-            total_registrado = tutor_asistencias_validas + tutor_reportes_llenos + tutor_incidencias
-            cumplimiento = (total_registrado / total_esperado * 100) if total_esperado > 0 else 0
-            
-            # Estado
             if cumplimiento >= 90: estado = "Excelente"; ecolor = "22C55E"
             elif cumplimiento >= 70: estado = "Bueno"; ecolor = "3B82F6"
             elif cumplimiento >= 50: estado = "Regular"; ecolor = "F59E0B"
             else: estado = "Bajo"; ecolor = "EF4444"
             
-            vals = [tutor_name, num_collabs, tutor_asistencias_validas, tutor_incidencias, tutor_reportes_llenos,
-                    total_esperado, total_registrado, f"{cumplimiento:.2f}%"]
+            vals = [tutor_name, num_collabs, filled_slots, tutor_incidencias, complete_reports_count,
+                    f"{attendance_score:.1f}%", f"{report_score:.1f}%", f"{cumplimiento:.2f}%"]
             
             for c_idx, val in enumerate(vals, 1):
                 ws.cell(row, c_idx, val).border = border
@@ -1697,48 +1701,67 @@ def generate_collaborator_report():
             cname = collab['full_name']
             bname = collab['branch_name'] or 'Sin sucursal'
             
+            # --- 1. Asistencia (50%) ---
             cursor.execute("SELECT date, status FROM attendance WHERE employee_id = %s AND EXTRACT(MONTH FROM date) = %s AND EXTRACT(YEAR FROM date) = %s", (cid, target_month, target_year))
             att_records = {r['date']: r['status'] for r in cursor.fetchall()}
             
-            valid_attendance_points = 0
+            valid_attendance_count = 0
             c_asist = 0; c_faltas = 0; c_vac = 0; c_perm = 0; c_incap = 0
             
             for b_day in business_days:
                 st = att_records.get(b_day)
                 if st == 'present' or st == 'delay':
-                    valid_attendance_points += 1; c_asist += 1
+                    valid_attendance_count += 1; c_asist += 1
                 elif st == 'vacation':
-                    valid_attendance_points += 1; c_vac += 1
+                    valid_attendance_count += 1; c_vac += 1
                 elif st == 'permission':
-                    valid_attendance_points += 1; c_perm += 1
+                    valid_attendance_count += 1; c_perm += 1
                 elif st == 'absent':
                     c_faltas += 1
                 elif st == 'incapacity':
                     c_incap += 1
-                
-            cursor.execute("SELECT COUNT(*) as count FROM incidents WHERE reported_by = %s AND EXTRACT(MONTH FROM created_at) = %s AND EXTRACT(YEAR FROM created_at) = %s", (cid, target_month, target_year))
-            c_incidencias = cursor.fetchone()['count']
             
+            attendance_score = (valid_attendance_count / num_business_days * 50) if num_business_days > 0 else 0
+            
+            # --- 2. Reportes (50%) ---
             cursor.execute("SELECT data as report_data FROM reports WHERE employee_id=%s AND month=%s AND year=%s", (cid, target_month-1, target_year))
             rep_row = cursor.fetchone()
-            valid_report_points = 0
+            
+            valid_report_items = 0
+            expected_report_items = num_business_days + 2 + 4 # Dias + 2 Guias + 4 Tableros
             
             if rep_row and rep_row['report_data']:
                 try:
                     data = json.loads(rep_row['report_data'])
+                    
+                    # Faltantes (Dias habiles)
                     faltantes = data.get('faltantes', {})
                     for b_day in business_days:
                          if faltantes.get(str(b_day.day), {}).get('status') == 'check':
-                             valid_report_points += 1
+                             valid_report_items += 1
+                    
+                    # Guias (2 envios) - Keys '1', '2'
+                    guias = data.get('guias', {})
+                    for k in ['1', '2']:
+                         if guias.get(k, {}).get('status') == 'check':
+                             valid_report_items += 1
+
+                    # Tableros (4 evidencias) - Keys '1', '2', '3', '4'
+                    tableros = data.get('tableros', {})
+                    for k in ['1', '2', '3', '4']:
+                         if tableros.get(k, {}).get('status') == 'check':
+                             valid_report_items += 1
+                             
                 except: pass
             
-            # Numerador: Asistencias + Reportes (diarios)
-            numerador = valid_attendance_points + valid_report_points
+            report_score = (valid_report_items / expected_report_items * 50) if expected_report_items > 0 else 0
             
-            # Denominador: 2 * Días Hábiles (Asistencia + Reporte)
-            denominador = num_business_days * 2
+            # --- Total ---
+            cumplimiento = attendance_score + report_score
             
-            cumplimiento = (numerador / denominador * 100) if denominador > 0 else 0
+            # Incidencias (Solo contar)
+            cursor.execute("SELECT COUNT(*) as count FROM incidents WHERE reported_by = %s AND EXTRACT(MONTH FROM created_at) = %s AND EXTRACT(YEAR FROM created_at) = %s", (cid, target_month, target_year))
+            c_incidencias = cursor.fetchone()['count']
             
             if cumplimiento >= 90: estado = "Excelente"; ecolor = "22C55E"
             elif cumplimiento >= 70: estado = "Bueno"; ecolor = "3B82F6"
@@ -1753,7 +1776,7 @@ def generate_collaborator_report():
             ws.cell(row, 6, c_perm).border = border
             ws.cell(row, 7, c_incap).border = border
             ws.cell(row, 8, c_incidencias).border = border
-            ws.cell(row, 9, valid_report_points).border = border
+            ws.cell(row, 9, valid_report_items).border = border
             ws.cell(row, 10, f"{cumplimiento:.2f}%").border = border
             
             ecell = ws.cell(row, 11, estado)
