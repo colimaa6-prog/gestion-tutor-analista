@@ -2404,6 +2404,127 @@ def process_branch_change(change_id):
 
 # ==================== MAIN ====================
 
+# ==================== DASHBOARD STATS ====================
+
+@app.route('/api/dashboard/stats', methods=['GET', 'OPTIONS'])
+def get_dashboard_stats():
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+        
+    authorized_ids = get_authorized_user_ids(int(user_id))
+    if not authorized_ids:
+        return jsonify({'success': True, 'data': {
+            'asistencias': 0, 'faltas': 0, 'vacaciones': 0, 'permisos': 0, 'incapacidades': 0, 'incidencias_activas': 0, 'retardos': 0
+        }})
+        
+    placeholders = ','.join(['%s' for _ in authorized_ids])
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        # Stats de asistencia de HOY
+        sql_base = f"""
+            SELECT a.status, COUNT(*) as count
+            FROM attendance a
+            JOIN attendance_roster ar ON a.employee_id = ar.employee_id
+            WHERE ar.added_by_user_id IN ({placeholders})
+            AND a.date = %s
+            GROUP BY a.status
+        """
+        
+        cursor.execute(sql_base, authorized_ids + [today])
+        
+        counts = {row['status']: row['count'] for row in cursor.fetchall()}
+        
+        # Incidencias activas (TOTAL, no solo de hoy)
+        cursor.execute(f"""
+            SELECT COUNT(*) as count 
+            FROM incidents i
+            WHERE (i.reported_by IN ({placeholders}) OR i.branch_id IN (
+                SELECT e.branch_id FROM employees e 
+                JOIN attendance_roster ar ON e.id = ar.employee_id 
+                WHERE ar.added_by_user_id IN ({placeholders})
+            ))
+            AND i.status = 'activa'
+        """, authorized_ids * 2) 
+        
+        incidencias = cursor.fetchone()['count']
+        
+        return jsonify({'success': True, 'data': {
+            'asistencias': counts.get('present', 0),
+            'faltas': counts.get('absent', 0),
+            'vacaciones': counts.get('vacation', 0),
+            'permisos': counts.get('permission', 0),
+            'incapacidades': counts.get('incapacity', 0),
+            'retardos': counts.get('delay', 0),
+            'incidencias_activas': incidencias
+        }})
+        
+    except Exception as e:
+        print(f"Error getting dashboard stats: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
+
+@app.route('/api/dashboard/delays', methods=['GET', 'OPTIONS'])
+def get_dashboard_delays():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+        
+    authorized_ids = get_authorized_user_ids(int(user_id))
+    if not authorized_ids:
+         return jsonify({'success': True, 'data': []})
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+        placeholders = ','.join(['%s' for _ in authorized_ids])
+        
+        cursor.execute(f"""
+            SELECT 
+                e.full_name,
+                b.name as branch_name,
+                a.arrival_time,
+                a.comment
+            FROM attendance a
+            JOIN employees e ON a.employee_id = e.id
+            LEFT JOIN branches b ON e.branch_id = b.id
+            JOIN attendance_roster ar ON e.id = ar.employee_id
+            WHERE ar.added_by_user_id IN ({placeholders})
+            AND a.date = %s
+            AND a.status = 'delay'
+            ORDER BY e.full_name ASC
+        """, authorized_ids + [today])
+        
+        delays = []
+        for row in cursor.fetchall():
+            delays.append({
+                'full_name': row['full_name'],
+                'branch_name': row['branch_name'],
+                'arrival_time': row['arrival_time'],
+                'comment': row['comment']
+            })
+            
+        return jsonify({'success': True, 'data': delays})
+    except Exception as e:
+        print(f"Error getting delays: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3000))
     app.run(host='0.0.0.0', port=port, debug=True)

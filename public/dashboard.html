@@ -107,14 +107,14 @@
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 0.8rem;
             margin-bottom: 2rem;
         }
 
         .stat-card {
             background: white;
-            padding: 1rem;
+            padding: 0.8rem;
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             border: 1px solid #f1f5f9;
@@ -122,12 +122,12 @@
 
         .stat-label {
             color: var(--text-light);
-            font-size: 0.8rem;
-            margin-bottom: 0.4rem;
+            font-size: 0.75rem;
+            margin-bottom: 0.2rem;
         }
 
         .stat-value {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 700;
             color: var(--text-color);
         }
@@ -340,6 +340,16 @@
                 ${reportsSection}
                 
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+                    <!-- Delays Board -->
+                    <div class="info-board">
+                        <h4 style="margin: 0 0 1rem 0; color: #f59e0b; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>⏱️</span> Colaboradores con Retardo
+                        </h4>
+                        <div id="delaysBoard" style="max-height: 300px; overflow-y: auto;">
+                            <p style="text-align: center; color: #94a3b8;">Cargando...</p>
+                        </div>
+                    </div>
+
                     <!-- Absences Board -->
                     <div class="info-board">
                         <h4 style="margin: 0 0 1rem 0; color: #ef4444; display: flex; align-items: center; gap: 0.5rem;">
@@ -463,6 +473,10 @@
                             <div class="stat-value" style="color: #f59e0b;">${stats.incapacidades}</div>
                         </div>
                         <div class="stat-card">
+                            <div class="stat-label">Retardos</div>
+                            <div class="stat-value" style="color: #f59e0b;">${stats.retardos || 0}</div>
+                        </div>
+                        <div class="stat-card">
                             <div class="stat-label">Incidencias Activas</div>
                             <div class="stat-value" style="color: #dc2626;">${stats.incidencias_activas}</div>
                         </div>
@@ -477,6 +491,31 @@
             const userStr = sessionStorage.getItem('user');
             if (!userStr) return;
             const user = JSON.parse(userStr);
+
+            // Load Delays
+            try {
+                const res = await fetch(`${API_BASE_URL}/dashboard/delays?userId=${user.id}`);
+                const result = await res.json();
+                const board = document.getElementById('delaysBoard');
+
+                if (board) {
+                    if (result.success && result.data.length > 0) {
+                        board.innerHTML = result.data.map(emp => `
+                            <div class="info-item">
+                                <div style="font-weight: 500;">${emp.full_name}</div>
+                                <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+                                    ⏰ ${emp.arrival_time || '--:--'} ${emp.comment ? '| ' + emp.comment : ''}
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay retardos hoy</p>';
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading delays:', e);
+            }
 
             // Load absences
             try {
