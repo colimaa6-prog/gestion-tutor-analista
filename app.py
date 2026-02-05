@@ -1861,19 +1861,22 @@ def generate_collaborator_report():
                     # Faltantes (Dias habiles)
                     faltantes = data.get('faltantes', {})
                     for b_day in business_days:
-                         if faltantes.get(str(b_day.day), {}).get('status') == 'check':
+                         st = faltantes.get(str(b_day.day), {}).get('status')
+                         if st == 'check' or st == 'pending':
                              valid_report_items += 1
                     
                     # Guias (2 envios) - Keys '1', '2'
                     guias = data.get('guias', {})
                     for k in ['1', '2']:
-                         if guias.get(k, {}).get('status') == 'check':
+                         st = guias.get(k, {}).get('status')
+                         if st == 'check' or st == 'pending':
                              valid_report_items += 1
 
                     # Tableros (4 evidencias) - Keys '1', '2', '3', '4'
                     tableros = data.get('tableros', {})
                     for k in ['1', '2', '3', '4']:
-                         if tableros.get(k, {}).get('status') == 'check':
+                         st = tableros.get(k, {}).get('status')
+                         if st == 'check' or st == 'pending':
                              valid_report_items += 1
                              
                 except: pass

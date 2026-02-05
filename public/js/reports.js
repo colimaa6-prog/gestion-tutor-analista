@@ -106,6 +106,10 @@ async function loadReportes() {
                         ❌
                         <div style="font-size: 0.85rem; color: #991b1b; margin-top: 0.5rem;">Equis</div>
                     </button>
+                    <button onclick="selectReportStatus('pending')" style="flex: 1; padding: 1.5rem; background: #fff7ed; border: 2px solid #f97316; border-radius: 8px; cursor: pointer; font-size: 2rem; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                        ❗
+                        <div style="font-size: 0.85rem; color: #9a3412; margin-top: 0.5rem;">Pendiente</div>
+                    </button>
                 </div>
                 <div style="display: flex; justify-content: space-between; gap: 0.5rem;">
                     <button onclick="selectReportStatus('empty')" style="flex: 1; padding: 0.6rem 1rem; background: transparent; border: 1px solid #cbd5e1; border-radius: 6px; cursor: pointer;">Limpiar</button>
@@ -280,6 +284,9 @@ function createCell(type, empId, key, status, comment, label, attrs = '', showLa
     } else if (status === 'cross') {
         content = '❌';
         bgColor = '#fef2f2'; // Red-50
+    } else if (status === 'pending') {
+        content = '❗';
+        bgColor = '#fff7ed'; // Orange-50
     } else if (isHoliday) {
         bgColor = 'rgba(139, 92, 246, 0.15)'; // Morado translúcido
         content = '⛔'; // No aplica
@@ -329,9 +336,9 @@ function selectReportStatus(selectedStatus) {
     // Close selection modal
     closeReportSelection();
 
-    if (selectedStatus === 'cross') {
-        // Open comment modal for cross/equis
-        pendingAction = { type, empId, key, status: 'cross' };
+    if (selectedStatus === 'cross' || selectedStatus === 'pending') {
+        // Open comment modal for cross or pending
+        pendingAction = { type, empId, key, status: selectedStatus };
         document.getElementById('reportCommentInput').value = '';
         document.getElementById('reportCommentModal').style.display = 'flex';
         document.getElementById('reportCommentInput').focus();
@@ -350,7 +357,7 @@ function closeReportComment(save) {
 
     if (save && pendingAction) {
         const comment = document.getElementById('reportCommentInput').value;
-        saveReportUpdate(pendingAction.type, pendingAction.empId, pendingAction.key, 'cross', comment);
+        saveReportUpdate(pendingAction.type, pendingAction.empId, pendingAction.key, pendingAction.status, comment);
     }
     pendingAction = null;
 }
