@@ -389,6 +389,16 @@
                             <p style="text-align: center; color: #94a3b8;">Cargando...</p>
                         </div>
                     </div>
+
+                    <!-- Birthdays Board -->
+                    <div class="info-board">
+                        <h4 style="margin: 0 0 1rem 0; color: #db2777; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>🎂</span> Cumpleaños del Día
+                        </h4>
+                        <div id="birthdaysBoard" style="max-height: 300px; overflow-y: auto;">
+                            <p style="text-align: center; color: #94a3b8;">Cargando...</p>
+                        </div>
+                    </div>
                     
                     <!-- Active Incidents Board -->
                     <div class="info-board" style="grid-column: span 2;">
@@ -605,6 +615,31 @@
                 }
             } catch (e) {
                 console.error('Error loading sick leaves:', e);
+            }
+
+            // Load birthdays
+            try {
+                const res = await fetch(`${API_BASE_URL}/dashboard/birthdays?userId=${user.id}`);
+                const result = await res.json();
+                const board = document.getElementById('birthdaysBoard');
+
+                if (board) {
+                    if (result.success && result.data.length > 0) {
+                        board.innerHTML = result.data.map(emp => `
+                            <div class="info-item">
+                                <div style="font-weight: 500;">${emp.full_name}</div>
+                                <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                                <div style="font-size: 0.8rem; color: #db2777; margin-top: 0.25rem;">
+                                    ¡Feliz Cumpleaños! 🎂
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay cumpleaños hoy</p>';
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading birthdays:', e);
             }
 
             // Load active incidents

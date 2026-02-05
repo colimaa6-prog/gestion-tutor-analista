@@ -366,6 +366,74 @@ def dashboard_active_incidents():
     finally:
         conn.close()
 
+@app.route('/api/dashboard/birthdays', methods=['GET', 'OPTIONS'])
+def dashboard_birthdays():
+    if request.method == 'OPTIONS': return '', 204
+    
+    user_id = request.args.get('userId')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'userId requerido'}), 400
+    
+    authorized_ids = get_authorized_user_ids(int(user_id))
+    if not authorized_ids:
+        return jsonify({'success': True, 'data': []})
+        
+    placeholders = ','.join(['%s' for _ in authorized_ids])
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Adjust for Mexico time (UTC-6)
+        from datetime import timedelta
+        today = (datetime.utcnow() - timedelta(hours=6)).date()
+        month = today.month
+        day = today.day
+        
+        if USE_POSTGRES:
+            # PostgreSQL: EXTRACT returns integer
+            query = f"""
+                SELECT DISTINCT e.id, e.full_name, e.birth_date, b.name as branch_name
+                FROM employees e
+                LEFT JOIN branches b ON e.branch_id = b.id
+                JOIN attendance_roster ar ON e.id = ar.employee_id
+                WHERE ar.added_by_user_id IN ({placeholders})
+                AND EXTRACT(MONTH FROM e.birth_date) = %s
+                AND EXTRACT(DAY FROM e.birth_date) = %s
+                AND e.status = 'active'
+                ORDER BY e.full_name ASC
+            """
+            params = authorized_ids + [month, day]
+        else:
+            # SQLite: strftime returns string with leading zero
+            query = f"""
+                SELECT DISTINCT e.id, e.full_name, e.birth_date, b.name as branch_name
+                FROM employees e
+                LEFT JOIN branches b ON e.branch_id = b.id
+                JOIN attendance_roster ar ON e.id = ar.employee_id
+                WHERE ar.added_by_user_id IN ({placeholders})
+                AND strftime('%%m', e.birth_date) = %s
+                AND strftime('%%d', e.birth_date) = %s
+                AND e.status = 'active'
+                ORDER BY e.full_name ASC
+            """
+            params = authorized_ids + [f"{month:02d}", f"{day:02d}"]
+            
+        cursor.execute(query, params)
+        
+        data = []
+        for row in cursor.fetchall():
+            item = dict_from_row(row)
+            if item.get('birth_date'):
+                item['birth_date'] = item['birth_date'].isoformat() if hasattr(item['birth_date'], 'isoformat') else str(item['birth_date'])
+            data.append(item)
+            
+        return jsonify({'success': True, 'data': data})
+    except Exception as e:
+        print(f"Error getting birthdays: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        conn.close()
+
 @app.route('/api/incidents', methods=['GET', 'POST', 'OPTIONS'])
 def incidents_list():
     if request.method == 'OPTIONS': 
