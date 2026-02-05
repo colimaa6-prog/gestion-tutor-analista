@@ -1457,6 +1457,9 @@
                                     <th style="padding: 1rem; color: var(--text-light);">Nombre</th>
                                     <th style="padding: 1rem; color: var(--text-light);">Sucursal</th>
                                     <th style="padding: 1rem; color: var(--text-light);">Fecha Ingreso</th>
+                                    <th style="padding: 1rem; color: var(--text-light);">Fecha Nac.</th>
+                                    <th style="padding: 1rem; color: var(--text-light);">Vac. x Año</th>
+                                    <th style="padding: 1rem; color: var(--text-light);">Dias Pend.</th>
                                     <th style="padding: 1rem; color: var(--text-light);">Estatus</th>
                                     <th style="padding: 1rem; color: var(--text-light);">Acciones</th>
                                 </tr>
@@ -1471,9 +1474,12 @@
                                 <td style="padding: 1rem; font-weight: 500;">${emp.full_name}</td>
                                 <td style="padding: 1rem;">${emp.branch_name || 'Sin asignar'}</td>
                                 <td style="padding: 1rem;">${emp.hire_date || '-'}</td>
+                                <td style="padding: 1rem;">${emp.birth_date || '-'}</td>
+                                <td style="padding: 1rem; text-align: center;">${emp.vacation_days_per_year || 0}</td>
+                                <td style="padding: 1rem; text-align: center; color: ${emp.pending_vacation_days < 0 ? '#ef4444' : '#1e293b'}; font-weight: 600;">${emp.pending_vacation_days !== undefined ? emp.pending_vacation_days : '-'}</td>
                                 <td style="padding: 1rem;"><span style="padding: 0.25rem 0.75rem; background: #dcfce7; color: #166534; border-radius: 99px; font-size: 0.85rem;">${emp.status}</span></td>
                                 <td style="padding: 1rem; display: flex; gap: 0.5rem;">
-                                    <button title="Editar" onclick="openEditModal(${emp.id}, '${emp.full_name}', ${emp.branch_id}, '${emp.hire_date || ''}')" style="border: none; background: none; cursor: pointer; color: var(--primary-color);">✏️</button>
+                                    <button title="Editar" onclick="openEditModal(${emp.id}, '${emp.full_name}', ${emp.branch_id}, '${emp.hire_date || ''}', '${emp.birth_date || ''}')" style="border: none; background: none; cursor: pointer; color: var(--primary-color);">✏️</button>
                                     <button title="Eliminar" onclick="deleteEmployee(${emp.id}, '${emp.full_name}')" style="border: none; background: none; cursor: pointer; color: #ef4444;">🗑️</button>
                                 </td>
                             </tr>
@@ -2273,10 +2279,11 @@
                 }
 
                 // Ahora crear el empleado con el branch_id
+                const birthDate = document.getElementById('newEmpBirthDate').value;
                 const res = await fetch(`${API_BASE_URL}/employees`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ full_name: name, branch_id: branchId, hire_date: date })
+                    body: JSON.stringify({ full_name: name, branch_id: branchId, hire_date: date, birth_date: birthDate })
                 });
                 const result = await res.json();
                 if (result.success) {
@@ -2286,6 +2293,7 @@
                     document.getElementById('newEmpName').value = '';
                     document.getElementById('newEmpBranch').value = '';
                     document.getElementById('newEmpDate').value = '';
+                    document.getElementById('newEmpBirthDate').value = '';
                     loadJefesOficina(); // Reload table
                 } else {
                     showToast('Error: ' + result.message, 'error');
@@ -2314,10 +2322,11 @@
         }
 
         // --- EDIT EMPLOYEE LOGIC ---
-        function openEditModal(id, name, branchId, date) {
+        function openEditModal(id, name, branchId, date, birthDate) {
             document.getElementById('editEmpId').value = id;
             document.getElementById('editEmpName').value = name;
             document.getElementById('editEmpDate').value = date;
+            document.getElementById('editEmpBirthDate').value = birthDate || '';
 
             // Populate branch select
             const select = document.getElementById('editEmpBranch');
@@ -2344,6 +2353,7 @@
             const name = document.getElementById('editEmpName').value;
             const branch = document.getElementById('editEmpBranch').value;
             const date = document.getElementById('editEmpDate').value;
+            const birthDate = document.getElementById('editEmpBirthDate').value;
 
             if (!name || !branch) {
                 showToast('Nombre y Sucursal son obligatorios', 'warning');
@@ -2354,7 +2364,7 @@
                 const res = await fetch(`${API_BASE_URL}/employees/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ full_name: name, branch_id: branch, hire_date: date })
+                    body: JSON.stringify({ full_name: name, branch_id: branch, hire_date: date, birth_date: birthDate })
                 });
                 const result = await res.json();
                 if (result.success) {
@@ -3084,6 +3094,13 @@
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
             </div>
 
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
+                    Nacimiento</label>
+                <input type="date" id="newEmpBirthDate"
+                    style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+            </div>
+
             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
                 <button onclick="document.getElementById('addModal').style.display='none'"
                     style="padding: 0.8rem 1.5rem; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer; font-family: inherit;">Cancelar</button>
@@ -3121,6 +3138,13 @@
                 <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
                     Ingreso</label>
                 <input type="date" id="editEmpDate"
+                    style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
+                    Nacimiento</label>
+                <input type="date" id="editEmpBirthDate"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
             </div>
 

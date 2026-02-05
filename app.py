@@ -609,22 +609,72 @@ def employees():
     
     try:
         if request.method == 'GET':
+            
+            today = datetime.now().date()
+            current_year = today.year
+            
+            # 1. Get vacation defaults taken per employee for current year
             cursor.execute("""
-                SELECT e.id, e.full_name, e.branch_id, e.hire_date, b.name as branch_name, e.status
+                SELECT employee_id, COUNT(*) as count 
+                FROM attendance 
+                WHERE status = 'vacation' 
+                AND EXTRACT(YEAR FROM date) = %s
+                GROUP BY employee_id
+            """, (current_year,))
+            
+            vacations_taken_map = {row['employee_id']: row['count'] for row in cursor.fetchall()}
+
+            # 2. Get Employees
+            cursor.execute("""
+                SELECT e.id, e.full_name, e.branch_id, e.hire_date, e.birth_date, b.name as branch_name, e.status
                 FROM employees e
                 LEFT JOIN branches b ON e.branch_id = b.id
                 ORDER BY e.full_name ASC
             """)
-            
+
             employees = []
-            for row in cursor:
+            for row in cursor.fetchall():
+                # Calculate years of service
+                hire_date_obj = row['hire_date']
+                years_of_service = 0
+                if hire_date_obj:
+                    # Calculate difference in years
+                    # Ensure hire_date_obj is date object
+                    if isinstance(hire_date_obj, str):
+                         hire_date_obj = datetime.strptime(hire_date_obj, '%Y-%m-%d').date()
+                    
+                    years_of_service = today.year - hire_date_obj.year - ((today.month, today.day) < (hire_date_obj.month, hire_date_obj.day))
+                
+                # Helper to calculate vacation entitlement
+                def get_vacation_days(years):
+                    if years <= 0: return 0
+                    if years == 1: return 15
+                    if years == 2: return 15
+                    if years == 3: return 16
+                    if years == 4: return 18
+                    if years == 5: return 20
+                    if years <= 10: return 22
+                    if years <= 15: return 24
+                    if years <= 20: return 26
+                    if years <= 25: return 28
+                    if years <= 30: return 30
+                    if years <= 35: return 32
+                    return 32 # Max 32 for > 35? or table ends.
+                
+                entitlement = get_vacation_days(years_of_service)
+                taken = vacations_taken_map.get(row['id'], 0)
+                pending = entitlement - taken
+                
                 employees.append({
                     'id': row['id'],
                     'full_name': row['full_name'],
                     'branch_id': row['branch_id'],
                     'hire_date': row['hire_date'].isoformat() if row['hire_date'] and hasattr(row['hire_date'], 'isoformat') else row['hire_date'],
+                    'birth_date': row['birth_date'].isoformat() if row['birth_date'] and hasattr(row['birth_date'], 'isoformat') else row['birth_date'],
                     'branch_name': row['branch_name'],
-                    'status': row['status']
+                    'status': row['status'],
+                    'vacation_days_per_year': entitlement,
+                    'pending_vacation_days': pending
                 })
             
             return jsonify({'success': True, 'data': employees})
@@ -632,12 +682,13 @@ def employees():
         elif request.method == 'POST':
             data = request.json
             hire_date = data.get('hire_date') or None
+            birth_date = data.get('birth_date') or None
             
             try:
                 cursor.execute("""
-                    INSERT INTO employees (full_name, branch_id, hire_date, status)
-                    VALUES (%s, %s, %s, 'active')
-                """, (data.get('full_name'), data.get('branch_id'), hire_date))
+                    INSERT INTO employees (full_name, branch_id, hire_date, birth_date, status)
+                    VALUES (%s, %s, %s, %s, 'active')
+                """, (data.get('full_name'), data.get('branch_id'), hire_date, birth_date))
                 conn.commit()
                 
                 return jsonify({'success': True, 'message': 'Empleado creado'})
@@ -651,9 +702,9 @@ def employees():
                         conn.commit()
                         # Reintentar el insert
                         cursor.execute("""
-                            INSERT INTO employees (full_name, branch_id, hire_date, status)
-                            VALUES (%s, %s, %s, 'active')
-                        """, (data.get('full_name'), data.get('branch_id'), hire_date))
+                            INSERT INTO employees (full_name, branch_id, hire_date, birth_date, status)
+                            VALUES (%s, %s, %s, %s, 'active')
+                        """, (data.get('full_name'), data.get('branch_id'), hire_date, birth_date))
                         conn.commit()
                         return jsonify({'success': True, 'message': 'Empleado creado'})
                     except Exception as retry_error:
@@ -686,14 +737,16 @@ def employee_detail(id):
         elif request.method == 'PUT':
             data = request.json
             hire_date = data.get('hire_date') or None
+            birth_date = data.get('birth_date') or None
             
             cursor.execute("""
                 UPDATE employees 
                 SET full_name = %s,
                     branch_id = %s,
-                    hire_date = %s
+                    hire_date = %s,
+                    birth_date = %s
                 WHERE id = %s
-            """, (data.get('full_name'), data.get('branch_id'), hire_date, id))
+            """, (data.get('full_name'), data.get('branch_id'), hire_date, birth_date, id))
             conn.commit()
             
             return jsonify({'success': True, 'message': 'Empleado actualizado'})
