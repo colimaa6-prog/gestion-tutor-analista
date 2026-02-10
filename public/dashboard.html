@@ -11,135 +11,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/toast.css">
-    <style>
-        /* Dashboard specific implementation - merge into style.css later */
-        .dashboard-container {
-            display: flex;
-            height: 100vh;
-            width: 100vw;
-            background: rgba(255, 255, 255, 0.5);
-            backdrop-filter: blur(10px);
-        }
-
-        .sidebar {
-            width: 260px;
-            background: rgba(255, 255, 255, 0.8);
-            border-right: 1px solid var(--glass-border);
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .logo {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            margin-bottom: 3rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .nav-links {
-            list-style: none;
-            flex: 1;
-        }
-
-        .nav-item {
-            margin-bottom: 0.8rem;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            padding: 0.8rem 1rem;
-            color: var(--text-light);
-            text-decoration: none;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            background: rgba(79, 70, 229, 0.1);
-            color: var(--primary-color);
-        }
-
-        .user-profile {
-            padding-top: 2rem;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-        }
-
-        .main-content {
-            flex: 1;
-            padding: 2rem;
-            overflow-y: auto;
-        }
-
-        .top-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-
-        .page-title {
-            font-size: 1.8rem;
-            color: var(--text-color);
-            font-weight: 600;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 0.8rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: white;
-            padding: 0.8rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            border: 1px solid #f1f5f9;
-        }
-
-        .stat-label {
-            color: var(--text-light);
-            font-size: 0.75rem;
-            margin-bottom: 0.2rem;
-        }
-
-        .stat-value {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: var(--text-color);
-        }
-    </style>
+    <!-- Styles moved to css/style.css -->
 </head>
 
 <body>
     <div class="background-orb orb-1"></div>
     <div class="background-orb orb-2"></div>
 
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
     <div class="dashboard-container">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <img src="papel.png" alt="Logo" style="height: 40px; width: auto;"> Reporte de gestion
             </div>
@@ -171,7 +52,17 @@
 
         <main class="main-content">
             <div class="top-bar">
-                <h2 class="page-title" id="pageTitle">Vista General</h2>
+                <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1;">
+                    <button class="menu-toggle" onclick="toggleSidebar()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <h2 class="page-title" id="pageTitle" style="margin: 0;">Vista General</h2>
+                </div>
 
                 <div style="display: flex; align-items: center; gap: 1rem;">
                     <!-- Alert Icon -->
@@ -223,6 +114,12 @@
     <script src="js/toast.js"></script>
     <script src="js/config.js"></script>
     <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+        }
         // Check auth
         const userStr = sessionStorage.getItem('user');
         if (!userStr) {
@@ -681,7 +578,7 @@
             const dayInitials = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
             // Header: Month specific controls? For now just title + Add Button
-            let gridHeader = '<th style="padding: 1rem; min-width: 200px; position: sticky; left: 0; background: white; z-index: 10;">Colaborador</th>';
+            let gridHeader = '<th class="sticky-col">Colaborador</th>';
             for (let i = 1; i <= daysInMonth; i++) {
                 // Calcular el día de la semana (0 = Domingo, 6 = Sábado)
                 const date = new Date(currentYear, currentMonth, i);
