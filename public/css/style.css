@@ -364,6 +364,9 @@ body {
     .dashboard-container {
         flex-direction: column;
         overflow-x: hidden;
+        /* Remove backdrop-filter to prevent creating a containing block for fixed sidebar */
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
     }
 
     .sidebar {
@@ -376,7 +379,10 @@ body {
         transform: translateX(-100%);
         box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
         background: rgba(255, 255, 255, 0.95);
-        /* More opaque for mobile */
+        z-index: 2000;
+        /* Ensure it is above the overlay */
+        overflow-y: auto;
+        /* Enable vertical scrolling */
     }
 
     .sidebar.active {
