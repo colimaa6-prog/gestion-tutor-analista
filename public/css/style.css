@@ -210,6 +210,8 @@ body {
     flex-direction: column;
     transition: transform 0.3s ease-in-out;
     z-index: 1000;
+    overflow-y: auto;
+    /* Allow scrolling if content is too tall */
 }
 
 .logo {
@@ -273,6 +275,7 @@ body {
     padding: 2rem;
     overflow-y: auto;
     position: relative;
+    /* Removed width: 100% to let flex grow handle it */
 }
 
 .top-bar {
@@ -313,6 +316,14 @@ body {
     font-size: 1.4rem;
     font-weight: 700;
     color: var(--text-color);
+}
+
+/* Info Boards Grid */
+.info-boards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
 }
 
 /* Mobile Toggle and Overlays */
@@ -404,6 +415,11 @@ body {
 
         .page-title {
             font-size: 1.1rem;
+        }
+
+        /* Force single column for info boards on small screens */
+        .info-boards-grid {
+            grid-template-columns: 1fr;
         }
     }
 
