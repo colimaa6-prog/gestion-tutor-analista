@@ -66,7 +66,7 @@ async function loadReportes() {
     content.innerHTML = `
         ${archivedMonthsHTML}
         
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding: 1.25rem; border-radius: 12px; ${monthHeaderStyle} box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+        <div class="control-header" style="${monthHeaderStyle}">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <h3 style="margin: 0; font-size: 1.5rem; color: #1e293b;">${monthNames[currentMonth]} ${currentYear}</h3>
                 ${monthBadge}
@@ -74,7 +74,7 @@ async function loadReportes() {
             
             <!-- Branch Filter -->
             <div style="flex: 1; display: flex; justify-content: center;">
-                 <select id="reportsBranchFilter" onchange="filterReportsTable()" style="padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; min-width: 200px; color: #475569;">
+                 <select id="reportsBranchFilter" onchange="filterReportsTable()" style="padding: 0.6rem 1rem; border: 1px solid #cbd5e1; border-radius: 8px; width: 100%; max-width: 400px; color: #475569;">
                     <option value="">Todas las sucursales</option>
                 </select>
             </div>

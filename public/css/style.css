@@ -326,6 +326,18 @@ body {
     margin-top: 2rem;
 }
 
+/* Control Header (Filters, Buttons, etc) */
+.control-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding: 1.25rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    gap: 1rem;
+}
+
 /* Mobile Toggle and Overlays */
 .menu-toggle {
     display: none;
@@ -409,6 +421,26 @@ body {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    /* Stack control header on mobile */
+    .control-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .control-header>div {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .control-header select {
+        width: 100%;
+        min-width: 0 !important;
+    }
+
+    .control-header button {
+        width: 100% !important;
     }
 
     /* Hide user full details on very small screens if needed */
