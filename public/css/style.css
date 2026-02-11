@@ -326,6 +326,10 @@ body {
     margin-top: 2rem;
 }
 
+.span-two {
+    grid-column: span 2;
+}
+
 /* Control Header (Filters, Buttons, etc) */
 .control-header {
     display: flex;
@@ -455,9 +459,14 @@ body {
             font-size: 1.1rem;
         }
 
-        /* Force single column for info boards on small screens */
+        /* Force single column for info boards on small/medium screens */
         .info-boards-grid {
             grid-template-columns: 1fr;
+        }
+
+        /* Reset grid span on mobile so it doesn't force extra columns */
+        .span-two {
+            grid-column: auto;
         }
     }
 
