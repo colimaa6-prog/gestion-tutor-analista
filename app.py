@@ -687,12 +687,13 @@ def employees():
             today = datetime.now().date()
             current_year = today.year
             
-            # 1. Get vacation defaults taken per employee for current year
+            # 1. Get vacation days taken per employee for current year (excluding weekends)
             cursor.execute("""
                 SELECT employee_id, COUNT(*) as count 
                 FROM attendance 
                 WHERE status = 'vacation' 
                 AND EXTRACT(YEAR FROM date) = %s
+                AND EXTRACT(DOW FROM date) NOT IN (0, 6)
                 GROUP BY employee_id
             """, (current_year,))
             

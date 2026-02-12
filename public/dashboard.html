@@ -1270,8 +1270,15 @@
                     const endDateObj = new Date(end_date);
                     const promises = [];
 
-                    // Iterar por cada día del rango
+                    // Iterar por cada día del rango (excluyendo sábados y domingos)
                     for (let d = new Date(startDateObj); d <= endDateObj; d.setDate(d.getDate() + 1)) {
+                        const dayOfWeek = d.getDay(); // 0=Domingo, 6=Sábado
+
+                        // Saltar fines de semana
+                        if (dayOfWeek === 0 || dayOfWeek === 6) {
+                            continue;
+                        }
+
                         const dateStr = d.toISOString().split('T')[0];
 
                         promises.push(
