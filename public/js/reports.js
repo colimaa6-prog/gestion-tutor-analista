@@ -5,6 +5,9 @@ async function loadReportes() {
     document.getElementById('pageTitle').innerText = 'Reportes de Gestión';
     document.getElementById('statsGrid').style.display = 'none'; // Hide stats for now
 
+    // Stop dashboard auto-refresh
+    if (window.dashboardRefreshInterval) clearInterval(window.dashboardRefreshInterval);
+
     const content = document.getElementById('contentArea');
 
     // Fetch archived months

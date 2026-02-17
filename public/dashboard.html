@@ -405,27 +405,31 @@
             if (!userStr) return;
             const user = JSON.parse(userStr);
 
+            // Function to safely update board content
+            const updateBoard = (elementId, data, formatter, emptyMessage) => {
+                const board = document.getElementById(elementId);
+                if (!board) return; // Element doesn't exist (e.g. strict tab switch)
+
+                if (data && data.length > 0) {
+                    board.innerHTML = data.map(formatter).join('');
+                } else {
+                    board.innerHTML = `<p style="text-align: center; color: #94a3b8;">${emptyMessage}</p>`;
+                }
+            };
+
             // Load Delays
             try {
                 const res = await fetch(`${API_BASE_URL}/dashboard/delays?userId=${user.id}`);
                 const result = await res.json();
-                const board = document.getElementById('delaysBoard');
-
-                if (board) {
-                    if (result.success && result.data.length > 0) {
-                        board.innerHTML = result.data.map(emp => `
-                            <div class="info-item">
-                                <div style="font-weight: 500;">${emp.full_name}</div>
-                                <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
-                                    ⏰ ${emp.arrival_time || '--:--'} ${emp.comment ? '| ' + emp.comment : ''}
-                                </div>
-                            </div>
-                        `).join('');
-                    } else {
-                        board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay retardos hoy</p>';
-                    }
-                }
+                updateBoard('delaysBoard', result.success ? result.data : [], emp => `
+                    <div class="info-item">
+                        <div style="font-weight: 500;">${emp.full_name}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+                            ⏰ ${emp.arrival_time || '--:--'} ${emp.comment ? '| ' + emp.comment : ''}
+                        </div>
+                    </div>
+                `, 'No hay retardos hoy');
             } catch (e) {
                 console.error('Error loading delays:', e);
             }
@@ -434,19 +438,13 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/dashboard/absences?userId=${user.id}`);
                 const result = await res.json();
-                const board = document.getElementById('absencesBoard');
-
-                if (result.success && result.data.length > 0) {
-                    board.innerHTML = result.data.map(emp => `
-                        <div class="info-item">
-                            <div style="font-weight: 500;">${emp.full_name}</div>
-                            <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
-                            ${emp.comment ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">${emp.comment}</div>` : ''}
-                        </div>
-                    `).join('');
-                } else {
-                    board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay faltas hoy</p>';
-                }
+                updateBoard('absencesBoard', result.success ? result.data : [], emp => `
+                    <div class="info-item">
+                        <div style="font-weight: 500;">${emp.full_name}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                        ${emp.comment ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">${emp.comment}</div>` : ''}
+                    </div>
+                `, 'No hay faltas hoy');
             } catch (e) {
                 console.error('Error loading absences:', e);
             }
@@ -455,21 +453,15 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/dashboard/vacations?userId=${user.id}`);
                 const result = await res.json();
-                const board = document.getElementById('vacationsBoard');
-
-                if (result.success && result.data.length > 0) {
-                    board.innerHTML = result.data.map(emp => `
-                        <div class="info-item">
-                            <div style="font-weight: 500;">${emp.full_name}</div>
-                            <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
-                            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
-                                ${emp.start_date} → ${emp.end_date}
-                            </div>
+                updateBoard('vacationsBoard', result.success ? result.data : [], emp => `
+                    <div class="info-item">
+                        <div style="font-weight: 500;">${emp.full_name}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+                            ${emp.start_date} → ${emp.end_date}
                         </div>
-                    `).join('');
-                } else {
-                    board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay vacaciones activas</p>';
-                }
+                    </div>
+                `, 'No hay vacaciones activas');
             } catch (e) {
                 console.error('Error loading vacations:', e);
             }
@@ -478,21 +470,15 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/dashboard/permissions?userId=${user.id}`);
                 const result = await res.json();
-                const board = document.getElementById('permissionsBoard');
-
-                if (result.success && result.data.length > 0) {
-                    board.innerHTML = result.data.map(emp => `
-                        <div class="info-item">
-                            <div style="font-weight: 500;">${emp.full_name}</div>
-                            <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
-                            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
-                                ${emp.permission_type || 'Permiso'} | ${emp.start_date} → ${emp.end_date}
-                            </div>
+                updateBoard('permissionsBoard', result.success ? result.data : [], emp => `
+                    <div class="info-item">
+                        <div style="font-weight: 500;">${emp.full_name}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+                            ${emp.permission_type || 'Permiso'} | ${emp.start_date} → ${emp.end_date}
                         </div>
-                    `).join('');
-                } else {
-                    board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay permisos activos</p>';
-                }
+                    </div>
+                `, 'No hay permisos activos');
             } catch (e) {
                 console.error('Error loading permissions:', e);
             }
@@ -501,21 +487,15 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/dashboard/sick-leaves?userId=${user.id}`);
                 const result = await res.json();
-                const board = document.getElementById('sickLeavesBoard');
-
-                if (result.success && result.data.length > 0) {
-                    board.innerHTML = result.data.map(emp => `
-                        <div class="info-item">
-                            <div style="font-weight: 500;">${emp.full_name}</div>
-                            <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
-                            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
-                                ${emp.start_date} → ${emp.end_date}
-                            </div>
+                updateBoard('sickLeavesBoard', result.success ? result.data : [], emp => `
+                    <div class="info-item">
+                        <div style="font-weight: 500;">${emp.full_name}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">
+                            ${emp.start_date} → ${emp.end_date}
                         </div>
-                    `).join('');
-                } else {
-                    board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay incapacidades activas</p>';
-                }
+                    </div>
+                `, 'No hay incapacidades activas');
             } catch (e) {
                 console.error('Error loading sick leaves:', e);
             }
@@ -524,23 +504,15 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/dashboard/birthdays?userId=${user.id}`);
                 const result = await res.json();
-                const board = document.getElementById('birthdaysBoard');
-
-                if (board) {
-                    if (result.success && result.data.length > 0) {
-                        board.innerHTML = result.data.map(emp => `
-                            <div class="info-item">
-                                <div style="font-weight: 500;">${emp.full_name}</div>
-                                <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
-                                <div style="font-size: 0.8rem; color: #db2777; margin-top: 0.25rem;">
-                                    ¡Feliz Cumpleaños! 🎂
-                                </div>
-                            </div>
-                        `).join('');
-                    } else {
-                        board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay cumpleaños hoy</p>';
-                    }
-                }
+                updateBoard('birthdaysBoard', result.success ? result.data : [], emp => `
+                    <div class="info-item">
+                        <div style="font-weight: 500;">${emp.full_name}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">${emp.branch_name || 'Sin sucursal'}</div>
+                        <div style="font-size: 0.8rem; color: #db2777; margin-top: 0.25rem;">
+                            ¡Feliz Cumpleaños! 🎂
+                        </div>
+                    </div>
+                `, 'No hay cumpleaños hoy');
             } catch (e) {
                 console.error('Error loading birthdays:', e);
             }
@@ -549,24 +521,18 @@
             try {
                 const res = await fetch(`${API_BASE_URL}/dashboard/active-incidents?userId=${user.id}`);
                 const result = await res.json();
-                const board = document.getElementById('incidentsBoard');
-
-                if (result.success && result.data.length > 0) {
-                    board.innerHTML = result.data.map(inc => `
-                        <div class="info-item">
-                            <div style="display: flex; justify-content: space-between; align-items: start;">
-                                <div>
-                                    <div style="font-weight: 500;">${inc.type}</div>
-                                    <div style="font-size: 0.85rem; color: #64748b;">${inc.branch_name || 'Sin sucursal'} | Reportado por: ${inc.reported_by_name}</div>
-                                    ${inc.description ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">${inc.description}</div>` : ''}
-                                </div>
-                                <span style="padding: 0.25rem 0.75rem; background: ${inc.status === 'pending' ? '#fef3c7' : '#dbeafe'}; color: ${inc.status === 'pending' ? '#92400e' : '#1e40af'}; border-radius: 99px; font-size: 0.75rem;">${inc.status}</span>
+                updateBoard('incidentsBoard', result.success ? result.data : [], inc => `
+                    <div class="info-item">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <div style="font-weight: 500;">${inc.type}</div>
+                                <div style="font-size: 0.85rem; color: #64748b;">${inc.branch_name || 'Sin sucursal'} | Reportado por: ${inc.reported_by_name}</div>
+                                ${inc.description ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem;">${inc.description}</div>` : ''}
                             </div>
+                            <span style="padding: 0.25rem 0.75rem; background: ${inc.status === 'pending' ? '#fef3c7' : '#dbeafe'}; color: ${inc.status === 'pending' ? '#92400e' : '#1e40af'}; border-radius: 99px; font-size: 0.75rem;">${inc.status}</span>
                         </div>
-                    `).join('');
-                } else {
-                    board.innerHTML = '<p style="text-align: center; color: #94a3b8;">No hay incidencias activas</p>';
-                }
+                    </div>
+                `, 'No hay incidencias activas');
             } catch (e) {
                 console.error('Error loading incidents:', e);
             }
@@ -577,6 +543,9 @@
             updateActiveLink('Asistencias');
             document.getElementById('pageTitle').innerText = 'Control de Asistencias';
             document.getElementById('statsGrid').style.display = 'none';
+
+            // Stop dashboard auto-refresh
+            if (window.dashboardRefreshInterval) clearInterval(window.dashboardRefreshInterval);
 
             const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
 
