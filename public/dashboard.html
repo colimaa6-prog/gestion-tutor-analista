@@ -114,6 +114,14 @@
     <script src="js/toast.js"></script>
     <script src="js/config.js"></script>
     <script>
+        // Global variables moved to top to avoid TDZ
+        let alertPollInterval = null;
+        let branchChangesPollingInterval = null;
+        let lastBranchChangesCount = 0;
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth(); // 0-11
+        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
@@ -172,9 +180,7 @@
         }
 
         // --- GLOBAL STATE ---
-        let currentYear = new Date().getFullYear();
-        let currentMonth = new Date().getMonth(); // 0-11
-        const monthNames = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"];
+
 
         async function loadDashboard() {
             updateActiveLink('Dashboard');
@@ -1750,7 +1756,7 @@
         // --- ALERTS SYSTEM ---
         let shownAlertIds = new Set();
         let pendingAlerts = [];
-        let alertPollInterval = null;
+
 
         async function startAlertPolling() {
             checkAlerts();
@@ -2832,8 +2838,6 @@
 
         // ==================== BRANCH CHANGES (ROTACIÓN DE PERSONAL) ====================
 
-        let branchChangesPollingInterval = null;
-        let lastBranchChangesCount = 0;
         const rotationSound = new Audio('death.mp3');
 
         // Iniciar polling de cambios en sucursales

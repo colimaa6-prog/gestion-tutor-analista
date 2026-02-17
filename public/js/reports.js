@@ -300,7 +300,7 @@ function createCell(type, empId, key, status, comment, label, attrs = '', showLa
 
     return `
         <td ${attrs} 
-            onclick="openReportSelection('${type}', ${empId}, ${key}, '${status || 'empty'}', '${comment ? comment.replace(/'/g, "\\'") : ''}')"
+            onclick="openReportSelection('${type}', ${empId}, ${key}, '${status || 'empty'}', '${comment ? comment.replace(/'/g, "\\'").replace(/"/g, '&quot;') : ''}')"
             ${tooltip}
             style="text-align: center; border: 1px solid #e2e8f0; border-bottom: ${type === 'tableros' ? '2px solid #94a3b8' : '1px solid #cbd5e1'}; cursor: pointer; position: relative; height: ${showLabel ? '60px' : '40px'}; min-width: ${showLabel ? '120px' : '40px'}; vertical-align: middle; background: ${bgColor}; user-select: none;">
             
