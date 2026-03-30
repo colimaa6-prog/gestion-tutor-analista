@@ -1,4 +1,4 @@
-﻿// Reports Module Logic
+// Reports Module Logic
 
 async function loadReportes() {
     updateActiveLink('Reportes');
@@ -87,7 +87,7 @@ async function loadReportes() {
             </div>
         </div>
 
-        <div style="overflow-x: auto; padding-bottom: 2rem;">
+        <div style="padding-bottom: 2rem;">
             <table style="width: 100%; border-collapse: separate; border-spacing: 0;">
                 <tbody id="reportsBody">
                     <tr><td style="padding: 2rem; text-align: center;">Cargando reportes...</td></tr>
