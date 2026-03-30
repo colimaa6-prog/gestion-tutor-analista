@@ -41,10 +41,10 @@
 }
 
 /* Custom Arrows (Scrollbar Buttons) */
-*::-webkit-scrollbar-button:single-button {
+*::-webkit-scrollbar-button {
     background-color: #ffffff;
     display: block !important;
-    background-size: 8px !important;
+    background-size: 10px !important;
     background-repeat: no-repeat !important;
     background-position: center !important;
     height: 14px;
@@ -74,10 +74,10 @@
     border: 1px solid #e2e8f0;
 }
 
-/* Firefox Support (Limited) */
+/* Soporte Firefox */
 * {
     scrollbar-width: thin;
-    scrollbar-color: var(--primary-color) #f1f5f9;
+    scrollbar-color: var(--primary-color) #f8fafc;
 }
 
 body {
@@ -338,25 +338,29 @@ body {
 .main-content {
     flex: 1;
     padding: 2rem;
-    overflow: auto; /* Handle both vertical and horizontal scroll here */
+    overflow: auto !important; /* IMPORTANTE: Aquí se gestiona todo el scroll */
     position: relative;
     height: 100vh;
+    box-sizing: border-box;
 }
 
-/* Ensure sticky headers work with main-content scroll */
+/* Asegurar que las tablas no tengan scroll propio que oculte la barra principal */
+.main-content div, .main-content section {
+    overflow: visible !important;
+}
+
+/* Fix para sticky headers dentro del scroll de main-content */
 .main-content thead th {
     position: sticky;
-    top: -2rem; /* Account for main-content padding */
+    top: -2rem; /* Por el padding de main-content */
     z-index: 40;
     background: white;
     box-shadow: 0 1px 0 #e2e8f0;
 }
 
-/* Double stickiness for corner head cells */
 .main-content thead th.sticky-col {
-    top: -2rem;
-    left: -2rem;
     z-index: 50;
+    left: -2rem;
 }
 
 .top-bar {
