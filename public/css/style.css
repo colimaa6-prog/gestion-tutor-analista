@@ -25,62 +25,85 @@
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.03);
-    border-radius: 10px;
+    background: #f1f5f9;
+    border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background-color: #cbd5e1;
     border-radius: 10px;
-    border: 3px solid transparent;
+    border: 3px solid #f1f5f9; /* Crea un efecto de padding */
     background-clip: content-box;
-    transition: background 0.3s;
+    min-height: 40px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary-color);
-    background-clip: content-box;
+    background-color: var(--primary-color);
 }
 
 /* Custom Arrows (Scrollbar Buttons) */
-::-webkit-scrollbar-button:single-button:vertical:decrement {
+::-webkit-scrollbar-button:single-button {
+    background-color: #ffffff; /* Fondo blanco sólido */
+    display: block !important;
+    background-size: 8px !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
     height: 14px;
     width: 14px;
-    background-image: url('../flecha-arriba.png');
-    background-size: 10px;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-color: transparent;
+    border: 1px solid #e2e8f0;
 }
 
-::-webkit-scrollbar-button:single-button:vertical:increment {
-    height: 14px;
-    width: 14px;
-    background-image: url('../flecha-abajo.png');
-    background-size: 10px;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-color: transparent;
+::-webkit-scrollbar-button:vertical:decrement {
+    background-image: url('../flecha-arriba.png') !important;
 }
 
-::-webkit-scrollbar-button:single-button:horizontal:decrement {
-    height: 14px;
-    width: 14px;
-    background-image: url('../flecha-izquierda.png');
-    background-size: 10px;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-color: transparent;
+::-webkit-scrollbar-button:vertical:increment {
+    background-image: url('../flecha-abajo.png') !important;
 }
 
-::-webkit-scrollbar-button:single-button:horizontal:increment {
-    height: 14px;
-    width: 14px;
-    background-image: url('../flecha-derecha.png');
-    background-size: 10px;
-    background-repeat: no-repeat;
-    background-position: center;
-    background-color: transparent;
+::-webkit-scrollbar-button:horizontal:decrement {
+    background-image: url('../flecha-izquierda.png') !important;
+}
+
+::-webkit-scrollbar-button:horizontal:increment {
+    background-image: url('../flecha-derecha.png') !important;
+}
+
+/* Esquina donde se cruzan las barras */
+::-webkit-scrollbar-corner {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+}
+
+/* Contenedor con scroll "siempre en vista" */
+.attendance-table-wrapper {
+    overflow: auto;
+    max-height: calc(100vh - 380px);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+    position: relative;
+}
+
+/* Fix para sticky headers dentro del wrapper */
+.attendance-table-wrapper thead th {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: white;
+    box-shadow: 0 1px 0 #e2e8f0;
+}
+
+.attendance-table-wrapper .sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background: white;
+}
+
+.attendance-table-wrapper thead th.sticky-col {
+    z-index: 50;
+    box-shadow: 1px 1px 0 #e2e8f0;
 }
 
 body {
