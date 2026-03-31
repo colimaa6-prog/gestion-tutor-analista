@@ -87,7 +87,7 @@
                 <div class="avatar" id="userInitials">A</div>
                 <div>
                     <div style="font-weight: 600; color: var(--text-color);" id="userName">Admin</div>
-                    <div style="font-size: 0.8rem; color: var(--text-light);" id="userRole">Administrador</div>
+                    <div style="font-size: 0.8rem; color: var(--text-light);" id="userRoleHeader">Administrador</div>
                 </div>
             </div>
         </aside>
@@ -189,7 +189,10 @@
                 'supervisor': 'Supervisor',
                 'coordinador': 'Coordinador'
             };
-            document.getElementById('userRole').textContent = roleLabels[user.role] || user.role;
+            const roleElemHeader = document.getElementById('userRoleHeader');
+            const roleElem = document.getElementById('userRole');
+            if (roleElem) roleElem.textContent = roleLabels[user.role] || user.role;
+            if (roleElemHeader) roleElemHeader.textContent = roleLabels[user.role] || user.role;
 
             // Load dashboard data automatically on page load
             loadDashboard();
@@ -1137,30 +1140,17 @@
                         </div>
                     </div>
                 `;
-            } else if (status === 'vacation') {
-                // Vacation dates
+            } else if (status === 'vacation' || status === 'incapacity') {
+                const labelStart = status === 'vacation' ? 'Fecha de Salida' : 'Fecha de Inicio';
+                const labelEnd = status === 'vacation' ? 'Fecha de Regreso' : 'Fecha de Fin';
                 container.innerHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Fecha de Salida</label>
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">${labelStart}</label>
                             <input type="date" id="formStartDate" value="${attendanceCache.start_date || ''}" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                         </div>
                         <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Fecha de Regreso</label>
-                            <input type="date" id="formEndDate" value="${attendanceCache.end_date || ''}" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
-                        </div>
-                    </div>
-                `;
-            } else if (status === 'incapacity') {
-                // Sick leave dates
-                container.innerHTML = `
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Fecha de Inicio</label>
-                            <input type="date" id="formStartDate" value="${attendanceCache.start_date || ''}" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
-                        </div>
-                        <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Fecha de Fin</label>
+                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">${labelEnd}</label>
                             <input type="date" id="formEndDate" value="${attendanceCache.end_date || ''}" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                         </div>
                     </div>
@@ -3147,27 +3137,7 @@
             </div>
         </div>
     </div>
-    <!-- Roster Modal -->
-    <div id="rosterModal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 10001;">
-        <div style="background: white; padding: 2rem; border-radius: 16px; width: 500px; max-width: 90%;">
-            <h3>Agregar a la Lista</h3>
-            <p style="margin-bottom: 1rem; color: #64748b;">Busca y selecciona un colaborador para llevar su asistencia.
-            </p>
-            <input type="text" id="rosterSearch" placeholder="Buscar por nombre..." onkeyup="filterRosterOptions()"
-                style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 1rem;">
 
-            <div id="rosterList"
-                style="max-height: 300px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 1rem;">
-                <!-- Options populate here -->
-            </div>
-
-            <div style="text-align: right;">
-                <button onclick="document.getElementById('rosterModal').style.display='none'"
-                    style="padding: 0.8rem 1.5rem; border: 1px solid #cbd5e1; background: white; border-radius: 8px; cursor: pointer;">Cerrar</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Reports Module -->
     <script src="js/reports.js"></script>
