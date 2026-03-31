@@ -723,7 +723,7 @@
 
                         <!-- Status Selector -->
                         <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Estatus</label>
+                            <label for="formStatus" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Estatus</label>
                             <select id="formStatus" onchange="updateFormFields()" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; font-size: 1rem;">
                                 <option value="">Seleccionar estatus...</option>
                                 <option value="present">✅ Asistencia</option>
@@ -740,7 +740,7 @@
 
                         <!-- Comment Field (Always visible) -->
                         <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Comentario</label>
+                            <label for="formComment" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Comentario</label>
                             <textarea id="formComment" rows="3" placeholder="Agregar comentario (opcional)..." style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
                         </div>
 
@@ -770,14 +770,14 @@
                         </div>
 
                         <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: #64748b; font-weight: 500;">Estatus</label>
+                            <div style="display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: #64748b; font-weight: 500;">Estatus</div>
                             <div id="detailStatus" style="font-size: 1.1rem; font-weight: 500; color: #0f172a;"></div>
                         </div>
 
                         <div id="detailConditionalFields" style="margin-bottom: 1.5rem;"></div>
 
                         <div style="margin-bottom: 1.5rem;">
-                            <label style="display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: #64748b; font-weight: 500;">Comentario</label>
+                            <div style="display: block; margin-bottom: 0.25rem; font-size: 0.85rem; color: #64748b; font-weight: 500;">Comentario</div>
                             <div id="detailComment" style="padding: 1rem; background: #f1f5f9; border-radius: 8px; color: #334155; font-style: italic; min-height: 3rem;"></div>
                         </div>
 
@@ -1122,7 +1122,7 @@
                 // Arrival time for delays
                 container.innerHTML = `
                     <div>
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Hora de Llegada</label>
+                        <label for="formArrivalTime" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Hora de Llegada</label>
                         <input type="time" id="formArrivalTime" value="${attendanceCache.arrival_time || ''}" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                     </div>
                 `;
@@ -1149,11 +1149,11 @@
                 container.innerHTML = `
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                         <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">${labelStart}</label>
+                            <label for="formStartDate" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">${labelStart}</label>
                             <input type="date" id="formStartDate" value="${attendanceCache.start_date || ''}" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                         </div>
                         <div>
-                            <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">${labelEnd}</label>
+                            <label for="formEndDate" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">${labelEnd}</label>
                             <input type="date" id="formEndDate" value="${attendanceCache.end_date || ''}" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                         </div>
                     </div>
@@ -1570,19 +1570,19 @@
                             
                             <div style="display: grid; gap: 1rem;">
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Colaborador</label>
+                                    <label for="incColaborador" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Colaborador</label>
                                     <select id="incColaborador" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;" onchange="autoFillBranch()">
                                         <option value="">Seleccionar colaborador...</option>
                                     </select>
                                 </div>
                                 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Sucursal</label>
+                                    <label for="incSucursal" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Sucursal</label>
                                     <input type="text" id="incSucursal" readonly style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #64748b;">
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Tipo de Incidencia</label>
+                                    <label for="incTipo" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Tipo de Incidencia</label>
                                     <select id="incTipo" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                         <option value="RENTA">RENTA</option>
                                         <option value="LUZ">LUZ</option>
@@ -1595,7 +1595,7 @@
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Estatus</label>
+                                    <label for="incEstatus" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Estatus</label>
                                     <select id="incEstatus" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                         <option value="EN PROCESO">EN PROCESO</option>
                                         <option value="CONCLUIDO">CONCLUIDO</option>
@@ -1605,17 +1605,17 @@
 
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                     <div>
-                                        <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Inicio</label>
+                                        <label for="incFechaInicio" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Inicio</label>
                                         <input type="date" id="incFechaInicio" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                     </div>
                                     <div>
-                                        <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Fin</label>
+                                        <label for="incFechaFin" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Fin</label>
                                         <input type="date" id="incFechaFin" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Comentario</label>
+                                    <label for="incComentario" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Comentario</label>
                                     <textarea id="incComentario" rows="3" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
                                 </div>
                             </div>
@@ -2055,19 +2055,19 @@
                             
                             <div style="display: grid; gap: 1rem;">
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Colaborador</label>
+                                    <label for="editIncColaborador" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Colaborador</label>
                                     <select id="editIncColaborador" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;" onchange="autoFillEditBranch()">
                                         <option value="">Seleccionar colaborador...</option>
                                     </select>
                                 </div>
                                 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Sucursal</label>
+                                    <label for="editIncSucursal" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Sucursal</label>
                                     <input type="text" id="editIncSucursal" readonly style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #f1f5f9; color: #64748b;">
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Tipo de Incidencia</label>
+                                    <label for="editIncTipo" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Tipo de Incidencia</label>
                                     <select id="editIncTipo" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                         <option value="RENTA">RENTA</option>
                                         <option value="LUZ">LUZ</option>
@@ -2080,7 +2080,7 @@
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Estatus</label>
+                                    <label for="editIncEstatus" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Estatus</label>
                                     <select id="editIncEstatus" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                         <option value="EN PROCESO">EN PROCESO</option>
                                         <option value="CONCLUIDO">CONCLUIDO</option>
@@ -2090,17 +2090,17 @@
 
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                                     <div>
-                                        <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Inicio</label>
+                                        <label for="editIncFechaInicio" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Inicio</label>
                                         <input type="date" id="editIncFechaInicio" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                     </div>
                                     <div>
-                                        <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Fin</label>
+                                        <label for="editIncFechaFin" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Fecha Fin</label>
                                         <input type="date" id="editIncFechaFin" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Comentario</label>
+                                    <label for="editIncComentario" style="display: block; font-size: 0.85rem; color: #64748b; margin-bottom: 0.25rem;">Comentario</label>
                                     <textarea id="editIncComentario" rows="3" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px;"></textarea>
                                 </div>
                             </div>
@@ -2396,21 +2396,21 @@
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <label for="tutorReportMonth" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
                         <select id="tutorReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <label for="tutorReportYear" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
                         <select id="tutorReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Tutor</label>
+                        <label for="tutorReportTutor" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Tutor</label>
                         <select id="tutorReportTutor" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             <option value="all">Todos los tutores</option>
                             ${tutors.map(t => `<option value="${t.id}">${t.username}</option>`).join('')}
@@ -2492,21 +2492,21 @@
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <label for="collaboratorReportMonth" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
                         <select id="collaboratorReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <label for="collaboratorReportYear" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
                         <select id="collaboratorReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
+                        <label for="collaboratorReportCollaborator" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
                         <select id="collaboratorReportCollaborator" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             <option value="all">Todos los colaboradores</option>
                             ${collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
@@ -2588,21 +2588,21 @@
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <label for="absencesReportMonth" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
                         <select id="absencesReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <label for="absencesReportYear" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
                         <select id="absencesReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
+                        <label for="absencesReportCollaborator" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
                         <select id="absencesReportCollaborator" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             <option value="all">Todos los colaboradores</option>
                             ${collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
@@ -2681,21 +2681,21 @@
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <label for="vacationsReportMonth" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
                         <select id="vacationsReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <label for="vacationsReportYear" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
                         <select id="vacationsReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
+                        <label for="vacationsReportCollaborator" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Colaborador</label>
                         <select id="vacationsReportCollaborator" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             <option value="all">Todos los colaboradores</option>
                             ${collaborators.map(c => `<option value="${c.id}">${c.full_name}</option>`).join('')}
@@ -2774,21 +2774,21 @@
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
+                        <label for="incidentsReportMonth" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Mes</label>
                         <select id="incidentsReportMonth" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${monthNames.map((name, idx) => `<option value="${idx}" ${idx === currentMonth ? 'selected' : ''}>${name}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
+                        <label for="incidentsReportYear" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Año</label>
                         <select id="incidentsReportYear" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             ${[currentYear, currentYear - 1, currentYear - 2].map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('')}
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1.5rem;">
-                        <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Sucursal</label>
+                        <label for="incidentsReportBranch" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b; font-weight: 500;">Sucursal</label>
                         <select id="incidentsReportBranch" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
                             <option value="all">Todas las sucursales</option>
                             ${branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
@@ -3052,14 +3052,14 @@
             <h3 style="margin-bottom: 1.5rem; color: #1e293b;">Nuevo Jefe de Oficina</h3>
 
             <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Nombre
+                <label for="newEmpName" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Nombre
                     Completo</label>
                 <input type="text" id="newEmpName"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
             </div>
 
             <div style="margin-bottom: 1rem;">
-                <label
+                <label for="newEmpBranch"
                     style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Sucursal</label>
                 <input type="text" id="newEmpBranch" list="branchDatalist"
                     placeholder="Selecciona o escribe una sucursal..."
@@ -3072,14 +3072,14 @@
             </div>
 
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
+                <label for="newEmpDate" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
                     Ingreso</label>
                 <input type="date" id="newEmpDate"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
             </div>
 
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
+                <label for="newEmpBirthDate" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
                     Nacimiento</label>
                 <input type="date" id="newEmpBirthDate"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
@@ -3103,14 +3103,14 @@
             <input type="hidden" id="editEmpId">
 
             <div style="margin-bottom: 1rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Nombre
+                <label for="editEmpName" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Nombre
                     Completo</label>
                 <input type="text" id="editEmpName"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
             </div>
 
             <div style="margin-bottom: 1rem;">
-                <label
+                <label for="editEmpBranch"
                     style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Sucursal</label>
                 <select id="editEmpBranch"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
@@ -3119,14 +3119,14 @@
             </div>
 
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
+                <label for="editEmpDate" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
                     Ingreso</label>
                 <input type="date" id="editEmpDate"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
             </div>
 
             <div style="margin-bottom: 1.5rem;">
-                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
+                <label for="editEmpBirthDate" style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: #64748b;">Fecha
                     Nacimiento</label>
                 <input type="date" id="editEmpBirthDate"
                     style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 8px; font-family: inherit;">
