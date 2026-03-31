@@ -31,19 +31,22 @@
             background-color: #4f46e5 !important;
         }
         *::-webkit-scrollbar-button {
+            display: none !important; /* Esconder botones dobles por defecto */
+        }
+        *::-webkit-scrollbar-button:single-button {
             display: block !important;
             height: 16px !important;
             width: 16px !important;
             background-color: white !important;
-            background-size: 10px !important;
+            background-size: 14px !important; /* Icono más grande (la barra sigue de 16px) */
             background-repeat: no-repeat !important;
             background-position: center !important;
             border: 1px solid #e2e8f0 !important;
         }
-        *::-webkit-scrollbar-button:vertical:decrement { background-image: url('flecha%20arriba.png') !important; }
-        *::-webkit-scrollbar-button:vertical:increment { background-image: url('flecha%20abajo.png') !important; }
-        *::-webkit-scrollbar-button:horizontal:decrement { background-image: url('flecha%20izquierda.png') !important; }
-        *::-webkit-scrollbar-button:horizontal:increment { background-image: url('flecha%20derecha.png') !important; }
+        *::-webkit-scrollbar-button:vertical:start:decrement { background-image: url('flecha%20arriba.png') !important; }
+        *::-webkit-scrollbar-button:vertical:end:increment { background-image: url('flecha%20abajo.png') !important; }
+        *::-webkit-scrollbar-button:horizontal:start:decrement { background-image: url('flecha%20izquierda.png') !important; }
+        *::-webkit-scrollbar-button:horizontal:end:increment { background-image: url('flecha%20derecha.png') !important; }
         *::-webkit-scrollbar-corner { background: white !important; }
 
         /* PERSISTENT VIEWPORT SCROLL SYSTEM */
