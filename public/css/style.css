@@ -66,22 +66,22 @@ body::-webkit-scrollbar-button {
 /* Force Arrow Images */
 *::-webkit-scrollbar-button:vertical:decrement, 
 body::-webkit-scrollbar-button:vertical:decrement {
-    background-image: url('../flecha-arriba.png') !important;
+    background-image: url('../flecha arriba.png') !important;
 }
 
 *::-webkit-scrollbar-button:vertical:increment, 
 body::-webkit-scrollbar-button:vertical:increment {
-    background-image: url('../flecha-abajo.png') !important;
+    background-image: url('../flecha abajo.png') !important;
 }
 
 *::-webkit-scrollbar-button:horizontal:decrement, 
 body::-webkit-scrollbar-button:horizontal:decrement {
-    background-image: url('../flecha-izquierda.png') !important;
+    background-image: url('../flecha izquierda.png') !important;
 }
 
 *::-webkit-scrollbar-button:horizontal:increment, 
 body::-webkit-scrollbar-button:horizontal:increment {
-    background-image: url('../flecha-derecha.png') !important;
+    background-image: url('../flecha derecha.png') !important;
 }
 
 /* Corner Intersection */
