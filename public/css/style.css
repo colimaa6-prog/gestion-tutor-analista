@@ -101,8 +101,17 @@ body::-webkit-scrollbar-corner {
     box-sizing: border-box;
 }
 
-.main-content * {
-    overflow: visible !important; /* Force internal tables to use main-content scrollbar */
+/* Evitar scrollbars dobles en contenedores de diseño, pero permitir overflow correcto en elementos multimedia */
+.main-content div:not([class*="modal"]), 
+.main-content section, 
+.main-content table-container {
+    overflow: visible;
+}
+
+.main-content img, 
+.main-content video, 
+.main-content canvas {
+    overflow: clip; /* Comportamiento moderno recomendado */
 }
 
 body {
@@ -369,9 +378,10 @@ body {
     box-sizing: border-box;
 }
 
-/* Asegurar que las tablas no tengan scroll propio que oculte la barra principal */
-.main-content div, .main-content section {
-    overflow: visible !important;
+/* Eliminar selectores universales problemáticos */
+.main-content div:not([class*="modal"]), 
+.main-content section {
+    overflow: visible;
 }
 
 /* Fix para sticky headers dentro del scroll de main-content */
