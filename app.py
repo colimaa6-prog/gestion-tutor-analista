@@ -42,6 +42,19 @@ def dict_from_row(row):
     else:
         return dict(row)
 
+def is_valid_date_year(date_str, min_year=1900, max_year=2050):
+    """Validar si el año de una fecha está dentro del rango seguro"""
+    if not date_str:
+        return True
+    try:
+        parts = str(date_str).split('-')
+        if len(parts) >= 1:
+            year = int(parts[0])
+            return min_year <= year <= max_year
+        return False
+    except Exception:
+        return False
+
 def get_authorized_user_ids(user_id):
     """Obtener IDs de usuarios autorizados según jerarquía"""
     conn = get_db_connection()
@@ -485,6 +498,11 @@ def incidents_list():
             # Convertir cadenas vacías a None para campos de fecha
             start_date = data.get('start_date') or None
             end_date = data.get('end_date') or None
+
+            # Validar años de fechas de incidencias
+            if not is_valid_date_year(start_date, 2020, 2050) or not is_valid_date_year(end_date, 2020, 2050):
+                return jsonify({'success': False, 'message': 'Fechas de incidencia fuera de rango permitido (2020-2050).'}), 400
+
             branch_id = data.get('branch_id') or None
             reported_by = data.get('reported_by') or None
             
@@ -527,6 +545,10 @@ def incident_detail(id):
             # Convert empty strings to None for date fields
             start_date = data.get('start_date') or None
             end_date = data.get('end_date') or None
+
+            # Validar años de fechas de incidencias
+            if not is_valid_date_year(start_date, 2020, 2050) or not is_valid_date_year(end_date, 2020, 2050):
+                return jsonify({'success': False, 'message': 'Fechas de incidencia fuera de rango permitido (2020-2050).'}), 400
             
             # Frontend sends 'employee_id' but we need 'reported_by'
             # Also handle 'branch_id' which may not be sent
@@ -758,6 +780,10 @@ def employees():
             data = request.json
             hire_date = data.get('hire_date') or None
             birth_date = data.get('birth_date') or None
+
+            # Validar años de contratación y nacimiento
+            if not is_valid_date_year(hire_date, 1990, 2050) or not is_valid_date_year(birth_date, 1920, 2050):
+                return jsonify({'success': False, 'message': 'Fechas de contratación o nacimiento fuera de rango permitido.'}), 400
             
             try:
                 cursor.execute("""
@@ -813,6 +839,10 @@ def employee_detail(id):
             data = request.json
             hire_date = data.get('hire_date') or None
             birth_date = data.get('birth_date') or None
+
+            # Validar años de contratación y nacimiento
+            if not is_valid_date_year(hire_date, 1990, 2050) or not is_valid_date_year(birth_date, 1920, 2050):
+                return jsonify({'success': False, 'message': 'Fechas de contratación o nacimiento fuera de rango permitido.'}), 400
             
             cursor.execute("""
                 UPDATE employees 
@@ -939,6 +969,14 @@ def attendance():
         
         elif request.method == 'POST':
             data = request.json
+
+            # Validar fechas de asistencia
+            date = data.get('date')
+            start_date = data.get('start_date') or None
+            end_date = data.get('end_date') or None
+            if not is_valid_date_year(date, 2020, 2050) or not is_valid_date_year(start_date, 2020, 2050) or not is_valid_date_year(end_date, 2020, 2050):
+                return jsonify({'success': False, 'message': 'Fechas de asistencia fuera de rango permitido (2020-2050).'}), 400
+
             cursor.execute("""
                 INSERT INTO attendance 
                 (employee_id, date, status, comment, arrival_time, 
@@ -1197,6 +1235,10 @@ def mark_attendance():
     permission_type = data.get('permission_type', '')
     start_date = data.get('start_date') or None
     end_date = data.get('end_date') or None
+
+    # Validar fechas de asistencia
+    if not is_valid_date_year(date, 2020, 2050) or not is_valid_date_year(start_date, 2020, 2050) or not is_valid_date_year(end_date, 2020, 2050):
+        return jsonify({'success': False, 'message': 'Fechas de asistencia fuera de rango permitido (2020-2050).'}), 400
     
     conn = get_db_connection()
     cursor = conn.cursor()

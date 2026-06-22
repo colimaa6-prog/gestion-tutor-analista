@@ -1270,6 +1270,22 @@
                     showToast('La fecha de fin no puede ser anterior a la fecha de inicio', 'warning');
                     return;
                 }
+
+                // Validar que los años de inicio y fin estén en un rango razonable (2020 a 2050)
+                const startYear = parseInt(start_date.split('-')[0]);
+                const endYear = parseInt(end_date.split('-')[0]);
+                if (startYear < 2020 || startYear > 2050 || endYear < 2020 || endYear > 2050) {
+                    showToast('Las fechas deben estar entre el año 2020 y 2050', 'warning');
+                    return;
+                }
+
+                // Validar que el rango no sea excesivo (máximo 365 días)
+                const diffTime = Math.abs(new Date(end_date) - new Date(start_date));
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays > 365) {
+                    showToast('El rango de fechas no puede ser mayor a 365 días', 'warning');
+                    return;
+                }
             }
 
             try {
@@ -1993,6 +2009,22 @@
             const endDate = document.getElementById('incFechaFin').value;
             const comment = document.getElementById('incComentario').value;
 
+            // Validar años de fechas de incidencias (rango 2020 a 2050)
+            if (startDate) {
+                const startYear = parseInt(startDate.split('-')[0]);
+                if (startYear < 2020 || startYear > 2050) {
+                    showToast('La fecha de inicio de la incidencia debe estar entre el año 2020 y 2050', 'warning');
+                    return;
+                }
+            }
+            if (endDate) {
+                const endYear = parseInt(endDate.split('-')[0]);
+                if (endYear < 2020 || endYear > 2050) {
+                    showToast('La fecha de fin de la incidencia debe estar entre el año 2020 y 2050', 'warning');
+                    return;
+                }
+            }
+
             try {
                 const res = await fetch(`${API_BASE_URL}/incidents`, {
                     method: 'POST',
@@ -2170,6 +2202,22 @@
                 return;
             }
 
+            // Validar años de fechas de incidencias al editar (rango 2020 a 2050)
+            if (startDate) {
+                const startYear = parseInt(startDate.split('-')[0]);
+                if (startYear < 2020 || startYear > 2050) {
+                    showToast('La fecha de inicio de la incidencia debe estar entre el año 2020 y 2050', 'warning');
+                    return;
+                }
+            }
+            if (endDate) {
+                const endYear = parseInt(endDate.split('-')[0]);
+                if (endYear < 2020 || endYear > 2050) {
+                    showToast('La fecha de fin de la incidencia debe estar entre el año 2020 y 2050', 'warning');
+                    return;
+                }
+            }
+
             // Obtener branch_id del empleado seleccionado
             const emp = incidentStaffCache.find(e => e.id == empId);
             const branchId = emp ? emp.branch_id : null;
@@ -2266,6 +2314,23 @@
 
                 // Ahora crear el empleado con el branch_id
                 const birthDate = document.getElementById('newEmpBirthDate').value;
+
+                // Validar años de contratación y nacimiento (rango seguro 1900 a 2050)
+                if (date) {
+                    const hireYear = parseInt(date.split('-')[0]);
+                    if (hireYear < 1990 || hireYear > 2050) {
+                        showToast('La fecha de ingreso debe estar entre el año 1990 y 2050', 'warning');
+                        return;
+                    }
+                }
+                if (birthDate) {
+                    const birthYear = parseInt(birthDate.split('-')[0]);
+                    if (birthYear < 1920 || birthYear > 2050) {
+                        showToast('La fecha de nacimiento debe estar entre el año 1920 y 2050', 'warning');
+                        return;
+                    }
+                }
+
                 const res = await fetch(`${API_BASE_URL}/employees`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2344,6 +2409,22 @@
             if (!name || !branch) {
                 showToast('Nombre y Sucursal son obligatorios', 'warning');
                 return;
+            }
+
+            // Validar años de contratación y nacimiento al editar (rango seguro 1900 a 2050)
+            if (date) {
+                const hireYear = parseInt(date.split('-')[0]);
+                if (hireYear < 1990 || hireYear > 2050) {
+                    showToast('La fecha de ingreso debe estar entre el año 1990 y 2050', 'warning');
+                    return;
+                }
+            }
+            if (birthDate) {
+                const birthYear = parseInt(birthDate.split('-')[0]);
+                if (birthYear < 1920 || birthYear > 2050) {
+                    showToast('La fecha de nacimiento debe estar entre el año 1920 y 2050', 'warning');
+                    return;
+                }
             }
 
             try {

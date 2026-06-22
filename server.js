@@ -14,6 +14,18 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Date Validation Helper Function
+function isValidDateYear(dateStr, minYear = 1900, maxYear = 2050) {
+    if (!dateStr) return true;
+    try {
+        const year = parseInt(dateStr.split('-')[0]);
+        if (isNaN(year)) return false;
+        return year >= minYear && year <= maxYear;
+    } catch (e) {
+        return false;
+    }
+}
+
 // Authorization Helper Function
 function getAuthorizedUserIds(userId, callback) {
     // First get the user to check their role
@@ -123,6 +135,10 @@ app.post('/api/employees', (req, res) => {
         return res.status(400).json({ success: false, message: 'Nombre y Sucursal son obligatorios' });
     }
 
+    if (hire_date && !isValidDateYear(hire_date, 1990, 2050)) {
+        return res.status(400).json({ success: false, message: 'La fecha de ingreso debe estar entre el año 1990 y 2050' });
+    }
+
     const query = 'INSERT INTO employees (full_name, branch_id, hire_date, status) VALUES (?, ?, ?, "active")';
     db.run(query, [full_name, branch_id, hire_date], function (err) {
         if (err) {
@@ -143,6 +159,10 @@ app.put('/api/employees/:id', (req, res) => {
 
     if (!full_name || !branch_id) {
         return res.status(400).json({ success: false, message: 'Nombre y Sucursal son obligatorios' });
+    }
+
+    if (hire_date && !isValidDateYear(hire_date, 1990, 2050)) {
+        return res.status(400).json({ success: false, message: 'La fecha de ingreso debe estar entre el año 1990 y 2050' });
     }
 
     const query = 'UPDATE employees SET full_name = ?, branch_id = ?, hire_date = ? WHERE id = ?';
@@ -282,6 +302,10 @@ app.get('/api/attendance/archived-months', (req, res) => {
 app.post('/api/attendance/mark', (req, res) => {
     const { employee_id, date, status, comment, arrival_time, permission_type, start_date, end_date } = req.body;
 
+    if (!isValidDateYear(date, 2020, 2050) || !isValidDateYear(start_date, 2020, 2050) || !isValidDateYear(end_date, 2020, 2050)) {
+        return res.status(400).json({ success: false, message: 'Fechas fuera de rango permitido (2020-2050).' });
+    }
+
     // Check if exists
     db.get('SELECT id FROM attendance WHERE employee_id = ? AND date = ?', [employee_id, date], (err, row) => {
         if (err) return res.status(500).json({ success: false, message: 'Error checking DB' });
@@ -350,6 +374,10 @@ app.get('/api/incidents', (req, res) => {
 app.post('/api/incidents', (req, res) => {
     const { employee_id, type, status, start_date, end_date, description } = req.body;
 
+    if (!isValidDateYear(start_date, 2020, 2050) || !isValidDateYear(end_date, 2020, 2050)) {
+        return res.status(400).json({ success: false, message: 'Fechas de incidencia fuera de rango permitido (2020-2050).' });
+    }
+
     // First get branch_id from employee
     db.get('SELECT branch_id FROM employees WHERE id = ?', [employee_id], (err, emp) => {
         if (err || !emp) {
@@ -379,6 +407,10 @@ app.post('/api/incidents', (req, res) => {
 // Update Incident
 app.put('/api/incidents/:id', (req, res) => {
     const { employee_id, type, status, start_date, end_date, description } = req.body;
+
+    if (!isValidDateYear(start_date, 2020, 2050) || !isValidDateYear(end_date, 2020, 2050)) {
+        return res.status(400).json({ success: false, message: 'Fechas de incidencia fuera de rango permitido (2020-2050).' });
+    }
     const id = req.params.id;
 
     // We allow updating employee_id, so we need to get the branch again just in case
