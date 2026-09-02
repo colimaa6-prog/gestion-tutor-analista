@@ -707,19 +707,29 @@ def employees():
         if request.method == 'GET':
             
             today = datetime.now().date()
-            current_year = today.year
             
-            # 1. Get vacation days taken per employee for current year (excluding weekends)
+            # 1. Get ALL vacation days taken per employee (excluding weekends)
+            # We fetch all of them and filter by the employee's current anniversary period in Python.
             cursor.execute("""
-                SELECT employee_id, COUNT(*) as count 
+                SELECT employee_id, date 
                 FROM attendance 
                 WHERE status = 'vacation' 
-                AND EXTRACT(YEAR FROM date) = %s
                 AND EXTRACT(DOW FROM date) NOT IN (0, 6)
-                GROUP BY employee_id
-            """, (current_year,))
+            """)
             
-            vacations_taken_map = {row['employee_id']: row['count'] for row in cursor.fetchall()}
+            # Group vacation dates by employee
+            vacation_dates_map = {}
+            for row in cursor.fetchall():
+                eid = row['employee_id']
+                v_date = row['date']
+                if isinstance(v_date, str):
+                    v_date = datetime.strptime(v_date, '%Y-%m-%d').date()
+                elif hasattr(v_date, 'date'):
+                    v_date = v_date.date()
+                    
+                if eid not in vacation_dates_map:
+                    vacation_dates_map[eid] = []
+                vacation_dates_map[eid].append(v_date)
 
             # 2. Get Employees
             cursor.execute("""
@@ -734,6 +744,8 @@ def employees():
                 # Calculate years of service
                 hire_date_obj = row['hire_date']
                 years_of_service = 0
+                taken = 0
+                
                 if hire_date_obj:
                     # Calculate difference in years
                     # Ensure hire_date_obj is date object
@@ -741,6 +753,20 @@ def employees():
                          hire_date_obj = datetime.strptime(hire_date_obj, '%Y-%m-%d').date()
                     
                     years_of_service = today.year - hire_date_obj.year - ((today.month, today.day) < (hire_date_obj.month, hire_date_obj.day))
+                    
+                    # Calculate current anniversary start date
+                    is_past_anniversary_this_year = (today.month, today.day) >= (hire_date_obj.month, hire_date_obj.day)
+                    anniversary_year = today.year if is_past_anniversary_this_year else today.year - 1
+                    
+                    try:
+                        anniversary_start = hire_date_obj.replace(year=anniversary_year)
+                    except ValueError:
+                        # Handle leap year edge case (Feb 29)
+                        anniversary_start = hire_date_obj.replace(year=anniversary_year, day=28)
+                    
+                    # Count vacations taken ONLY in the current anniversary period
+                    taken_dates = vacation_dates_map.get(row['id'], [])
+                    taken = sum(1 for d in taken_dates if d >= anniversary_start)
                 
                 # Helper to calculate vacation entitlement
                 def get_vacation_days(years):
@@ -759,7 +785,6 @@ def employees():
                     return 32 # Max 32 for > 35? or table ends.
                 
                 entitlement = get_vacation_days(years_of_service)
-                taken = vacations_taken_map.get(row['id'], 0)
                 pending = entitlement - taken
                 
                 employees.append({
